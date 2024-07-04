@@ -7,9 +7,8 @@ num_workers: 4
 seed: 1234
 use_wandb: False
 
-data_dir_test: /kaggle/input/megdata-test/
-data_dir_val: /kaggle/input/megdata-val/
-data_dir_train: /kaggle/input/megdata-train/
+data_dir: /kaggle/input/
+
 
 # Evaluation
 model_path: 
