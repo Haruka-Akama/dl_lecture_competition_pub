@@ -7,7 +7,7 @@ from termcolor import cprint
 
 
 class ThingsMEGDataset(torch.utils.data.Dataset):
-    def __init__(self, split: str, data_dir: str = "/kaggle/input/megdata") -> None:
+    def __init__(self, split: str, data_dir: str = "/kaggle/input/") -> None:
         super().__init__()
         
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
@@ -33,4 +33,14 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, i):
         if hasattr(self, "y"):
-            
+            return self.X[i], self.y[i], self.subject_idxs[i]
+        else:
+            return self.X[i], self.subject_idxs[i]
+        
+    @property
+    def num_channels(self) -> int:
+        return self.X.shape[1]
+    
+    @property
+    def seq_len(self) -> int:
+        return self.X.shape[2]
