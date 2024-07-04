@@ -33,14 +33,4 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, i):
         if hasattr(self, "y"):
-            return self.X[i], self.y[i], self.subject_idxs[i]
-        else:
-            return self.X[i], self.subject_idxs[i]
-        
-    @property
-    def num_channels(self) -> int:
-        return self.X.shape[1]
-    
-    @property
-    def seq_len(self) -> int:
-        return self.X.shape[2]
+            
