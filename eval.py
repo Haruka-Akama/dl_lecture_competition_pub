@@ -23,7 +23,7 @@ def run(args: DictConfig):
     # ------------------
     #    Dataloader
     # ------------------    
-    test_set = ThingsMEGDataset("test", args.data_dir)
+    test_set = ThingsMEGDataset("test", args.data_dir_test)
     test_loader = torch.utils.data.DataLoader(
         test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers
     )

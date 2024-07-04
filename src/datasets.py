@@ -5,19 +5,27 @@ from typing import Tuple
 from termcolor import cprint
 
 
+
 class ThingsMEGDataset(torch.utils.data.Dataset):
-    def __init__(self, split: str, data_dir: str = "data") -> None:
+    def __init__(self, split: str, data_dir: str = "/kaggle/input/megdata") -> None:
         super().__init__()
         
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
         self.split = split
         self.num_classes = 1854
+
+        if split == "train":
+            data_path = os.path.join(data_dir, "megdata-train")
+        elif split == "val":
+            data_path = os.path.join(data_dir, "megdata-val")
+        else:
+            data_path = os.path.join(data_dir, "megdata-test")
         
-        self.X = torch.load(os.path.join(data_dir, f"{split}_X.pt"))
-        self.subject_idxs = torch.load(os.path.join(data_dir, f"{split}_subject_idxs.pt"))
+        self.X = torch.load(os.path.join(data_path, f"{split}_X.pt"))
+        self.subject_idxs = torch.load(os.path.join(data_path, f"{split}_subject_idxs.pt"))
         
         if split in ["train", "val"]:
-            self.y = torch.load(os.path.join(data_dir, f"{split}_y.pt"))
+            self.y = torch.load(os.path.join(data_path, f"{split}_y.pt"))
             assert len(torch.unique(self.y)) == self.num_classes, "Number of classes do not match."
 
     def __len__(self) -> int:
