@@ -54,7 +54,7 @@ def run(args: DictConfig):
     # ------------------
     #   Start training
     # ------------------  
-     max_val_acc = 0
+    max_val_acc = 0
     accuracy = Accuracy(
         task="multiclass", num_classes=train_set.num_classes, top_k=10
     ).to(args.device)
