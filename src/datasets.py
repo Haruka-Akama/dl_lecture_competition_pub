@@ -41,8 +41,29 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         else:
             data_path = os.path.join(data_dir, "megdata-test")
         
-        self.X = torch.load(os.path.join(data_path, f"{split}_X.pt"))
-        self.subject_idxs = torch.load(os.path.join(data_path, f"{split}_subject_idxs.pt"))
+        self.X = torch.load(os.path.join(data_path, f"{split}_X.npy"))
+        self.subject_idxs = torch.load(os.path.join(data_path, f"{split}_subject_idxs.npy"))
         
         if split in ["train", "val"]:
-            self.y = torch.load(os.path.join(data_path, 
+            self.y = torch.load(os.path.join(data_path, f"{split}_y.npy"))
+            assert len(torch.unique(self.y)) == self.num_classes, "Number of classes do not match."
+        
+        # Apply Global Contrast Normalization
+        self.X = torch.stack([global_contrast_normalization(x) for x in self.X])
+
+    def __len__(self) -> int:
+        return len(self.X)
+
+    def __getitem__(self, i):
+        if hasattr(self, "y"):
+            return self.X[i], self.y[i], self.subject_idxs[i]
+        else:
+            return self.X[i], self.subject_idxs[i]
+        
+    @property
+    def num_channels(self) -> int:
+        return self.X.shape[1]
+    
+    @property
+    def seq_len(self) -> int:
+        return self.X.shape[2]
