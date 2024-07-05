@@ -25,7 +25,6 @@ def global_contrast_normalization(X: torch.Tensor, s: float = 1.0, λ: float = 1
 
     return X
 
-
 class ThingsMEGDataset(torch.utils.data.Dataset):
     def __init__(self, split: str, data_dir: str = "/kaggle/input/") -> None:
         super().__init__()
@@ -41,11 +40,11 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         else:
             data_path = os.path.join(data_dir, "megdata-test")
         
-        self.X = torch.load(os.path.join(data_path, f"{split}_X.npy"))
-        self.subject_idxs = torch.load(os.path.join(data_path, f"{split}_subject_idxs.npy"))
+        self.X = torch.load(os.path.join(data_path, f"{split}_X.pt"))
+        self.subject_idxs = torch.load(os.path.join(data_path, f"{split}_subject_idxs.pt"))
         
         if split in ["train", "val"]:
-            self.y = torch.load(os.path.join(data_path, f"{split}_y.npy"))
+            self.y = torch.load(os.path.join(data_path, f"{split}_y.pt"))
             assert len(torch.unique(self.y)) == self.num_classes, "Number of classes do not match."
         
         # Apply Global Contrast Normalization
@@ -67,3 +66,6 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
     @property
     def seq_len(self) -> int:
         return self.X.shape[2]
+
+# Example usage:
+# dataset = ThingsMEGDataset(split="train", data_dir="/kaggle/input/")
