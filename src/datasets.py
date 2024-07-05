@@ -44,5 +44,4 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         self.X = torch.load(os.path.join(data_path, f"{split}_X.pt"))
         self.subject_idxs = torch.load(os.path.join(data_path, f"{split}_subject_idxs.pt"))
         
-        if split in ["train", "val"]:
-            self.y = torch.load(os.path.join(data_path, 
+        if split in 

@@ -44,4 +44,18 @@ class ConvLSTMClassifier(nn.Module):
         Returns:
             X ( b, num_classes ): _description_
         """
-        # Apply
+        # Apply convolutional layers
+        X = self.conv(X)
+        # LSTM expects input of shape (batch, seq_len, input_size)
+        X = X.permute(0, 2, 1)
+        X, _ = self.lstm(X)
+        X = X.permute(0, 2, 1)
+
+        return self.head(X)
+
+# Example usage:
+# model = ConvLSTMClassifier(num_classes=10, seq_len=100, in_channels=20)
+
+
+# Example usage:
+# model = BasicLSTMClassifier(num_classes=10, seq_len=100, in_channels=20)
