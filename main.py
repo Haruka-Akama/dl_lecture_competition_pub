@@ -1,4 +1,4 @@
-import os, sys
+import os
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -10,11 +10,10 @@ from termcolor import cprint
 from tqdm import tqdm
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torchvision.models import vgg19_bn, VGG19_BN_Weights  # インポートの追加
 
-from src.datasets import ThingsMEGDataset
-from src.LSTM_models import ConvLSTMClassifier
+from src.datasets import ThingsMEGDataset  # インポートの修正
 from src.utils import set_seed
-
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):
@@ -41,15 +40,24 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = ConvLSTMClassifier(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels
-    ).to(args.device)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    weights = VGG19_BN_Weights.DEFAULT
+    model = vgg19_bn(weights=weights)
+    model.classifier[6] = torch.nn.Linear(4096, train_set.num_classes)  # 最終層を置き換える
+    
+    if torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs")
+        model = torch.nn.DataParallel(model, device_ids=list(range(torch.cuda.device_count())))  # 使用するGPUを指定
+    else:
+        print("Using a single GPU")
+
+    model = model.to(device)
 
     # ------------------
     #     Optimizer
     # ------------------
     optimizer = torch.optim.Adam(model.parameters(), lr=0.007, weight_decay=1e-5)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10)
 
     # ------------------
     #   Start training
@@ -57,7 +65,7 @@ def run(args: DictConfig):
     max_val_acc = 0
     accuracy = Accuracy(
         task="multiclass", num_classes=train_set.num_classes, top_k=10
-    ).to(args.device)
+    ).to(device)
       
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}/{args.epochs}")
@@ -66,7 +74,7 @@ def run(args: DictConfig):
         
         model.train()
         for X, y, subject_idxs in tqdm(train_loader, desc="Train"):
-            X, y = X.to(args.device), y.to(args.device)
+            X, y = X.to(device), y.to(device)
 
             y_pred = model(X)
             
@@ -82,7 +90,7 @@ def run(args: DictConfig):
 
         model.eval()
         for X, y, subject_idxs in tqdm(val_loader, desc="Validation"):
-            X, y = X.to(args.device), y.to(args.device)
+            X, y = X.to(device), y.to(device)
             
             with torch.no_grad():
                 y_pred = model(X)
@@ -110,21 +118,19 @@ def run(args: DictConfig):
         # Update the learning rate scheduler
         scheduler.step(avg_val_loss)
     
-    
     # ----------------------------------
     #  Start evaluation with best model
     # ----------------------------------
-    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=args.device))
+    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=device))
 
     preds = [] 
     model.eval()
     for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
-        preds.append(model(X.to(args.device)).detach().cpu())
+        preds.append(model(X.to(device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
     np.save(os.path.join(logdir, "submission"), preds)
     cprint(f"Submission {preds.shape} saved at {logdir}", "cyan")
-
 
 if __name__ == "__main__":
     run()
