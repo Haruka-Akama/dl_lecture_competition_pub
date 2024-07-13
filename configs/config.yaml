@@ -1,5 +1,9 @@
 batch_size: 128
+<<<<<<< HEAD
 epochs: 10
+=======
+epochs: 2
+>>>>>>> fc66237 (baseline 1st try)
 lr: 0.0002
 
 device: cuda

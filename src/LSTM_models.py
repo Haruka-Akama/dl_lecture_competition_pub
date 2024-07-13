@@ -49,29 +49,69 @@ class ConvLSTMClassifier(nn.Module):
         seq_len: int,
         in_channels: int,
         hid_dim: int = 128,
+<<<<<<< HEAD
         num_layers: int = 2,
         p_drop: float = 0.5,
+=======
+        num_blocks: int = 4,
+        kernel_size: int = 5,
+        num_subjects: int = 4,
+        subject_emb_dim: int = 32,
+        lstm_hidden_dim: int = 64,
+        lstm_layers: int = 2,
+        dropout_prob: float = 0.5,
+        weight_decay: float = 1e-5
+>>>>>>> fc66237 (baseline 1st try)
     ) -> None:
-        super().__init__()
+        super(ConvLSTMClassifier, self).__init__()
+        self.num_classes = num_classes
+        self.seq_len = seq_len
+        self.in_channels = in_channels
+        self.hid_dim = hid_dim
+        self.num_blocks = num_blocks
+        self.kernel_size = kernel_size
+        self.num_subjects = num_subjects
+        self.subject_emb_dim = subject_emb_dim
+        self.lstm_hidden_dim = lstm_hidden_dim
+        self.lstm_layers = lstm_layers
+        self.dropout_prob = dropout_prob
+        self.weight_decay = weight_decay
 
+<<<<<<< HEAD
         self.conv = nn.Sequential(
             ConvBlock(in_channels, hid_dim, kernel_size=3, p_drop=p_drop),
             nn.MaxPool1d(kernel_size=2)
         )
+=======
+
+        self.blocks = nn.Sequential(*[
+            ConvBlock(in_channels if i == 0 else hid_dim, hid_dim, kernel_size=kernel_size, p_drop=dropout_prob)
+            for i in range(num_blocks)
+        ])
+        
+        
+        self.subject_embedding = nn.Embedding(num_subjects, subject_emb_dim)
+        
+        self.batchnorm = nn.BatchNorm1d(hid_dim)
+        self.layernorm = nn.LayerNorm(hid_dim + subject_emb_dim)
+>>>>>>> fc66237 (baseline 1st try)
 
         self.lstm = nn.LSTM(
-            input_size=hid_dim,
-            hidden_size=hid_dim,
-            num_layers=num_layers,
+            input_size=hid_dim + subject_emb_dim,
+            hidden_size=lstm_hidden_dim,
+            num_layers=lstm_layers,
             batch_first=True,
-            bidirectional=True
+            dropout=dropout_prob
         )
+
+        self.dropout = nn.Dropout(dropout_prob)
 
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
-            Rearrange("b t h -> b (t h)"),
-            nn.Linear(hid_dim * 2, num_classes),  # * 2 for bidirectional
+            Rearrange("b d 1 -> b d"),
+            nn.Linear(lstm_hidden_dim, num_classes),
         )
+        
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """_summary_
@@ -89,6 +129,7 @@ class ConvLSTMClassifier(nn.Module):
 
         return self.head(X)
 
+<<<<<<< HEAD
 # 使用例
 model = ConvLSTMClassifier(
     num_classes=10,
@@ -98,3 +139,5 @@ model = ConvLSTMClassifier(
     num_layers=2,
     p_drop=0.5
 )
+=======
+>>>>>>> fc66237 (baseline 1st try)
