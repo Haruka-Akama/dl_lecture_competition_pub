@@ -14,6 +14,7 @@ from src.datasets import ThingsMEGDataset
 from src.VGG19_models import VGG19Classifier
 from src.utils import set_seed
 
+# テンソル形状の変換関数
 def reshape_input(X):
     batch_size, channels, seq_len = X.shape
     height = int(np.sqrt(seq_len))
@@ -23,8 +24,11 @@ def reshape_input(X):
         height -= 1
         width = seq_len // height
 
+    print(f"Reshaping: batch_size={batch_size}, channels={channels}, seq_len={seq_len} -> height={height}, width={width}")
+    
     X = X.view(batch_size, channels, height, width)
     return X
+
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):

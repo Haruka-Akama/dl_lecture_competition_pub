@@ -1,11 +1,9 @@
 import os
 import numpy as np
 import torch
-from typing import Tuple
-from termcolor import cprint
+from torch.utils.data import Dataset
 
-
-class ThingsMEGDataset(torch.utils.data.Dataset):
+class ThingsMEGDataset(Dataset):
     def __init__(self, split: str, data_dir: str = "data") -> None:
         super().__init__()
         
