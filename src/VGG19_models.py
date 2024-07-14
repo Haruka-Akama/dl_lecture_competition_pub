@@ -59,6 +59,9 @@ class VGG19Classifier(WeightsEnum):
     )
     DEFAULT = IMAGENET1K_V1
 
+    def __init__(self, weights: Optional[Weights] = None):
+        self.weights = weights if weights else self.DEFAULT
+
 def vgg19_bn(*, weights: Optional[VGG19Classifier] = None, progress: bool = True, **kwargs: Any) -> nn.Module:
     weights = VGG19Classifier.verify(weights)
     return _vgg("E", True, weights, progress, **kwargs)

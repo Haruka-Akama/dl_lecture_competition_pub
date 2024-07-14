@@ -11,7 +11,7 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from src.datasets import ThingsMEGDataset
-from src.VGG19_models import VGG19Classifier
+from src.VGG19_models import VGG19Classifier, vgg19_bn
 from src.utils import set_seed
 
 
@@ -46,14 +46,17 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = VGG19Classifier(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels
-    ).to(args.device)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    weights = VGG19_BN_Weights.DEFAULT
-    model = vgg19_bn(weights=weights)
-    model.classifier[6] = torch.nn.Linear(4096, train_set.num_classes)
 
+    # VGG19モデルのロード（事前学習済みの重みを使用）
+    weights = VGG19_BN_Weights.DEFAULT
+    model = models.vgg19_bn(weights=weights)
+
+    # 分類層のカスタマイズ
+    model.classifier[6] = nn.Linear(4096, train_set.num_classes)
+
+    # モデルをデバイスに移動
+    model = model.to(device)
     # ------------------
     #     Optimizer
     # ------------------
