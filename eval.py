@@ -10,7 +10,7 @@ from termcolor import cprint
 from tqdm import tqdm
 
 from src.datasets import ThingsMEGDataset
-from src.models import LSTMConvClassifier
+from src.VGG19_models import VGG19Classifier
 from src.utils import set_seed
 
 
@@ -31,7 +31,7 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = LSTMConvClassifier(
+    model = VGG19Classifier(
         test_set.num_classes, test_set.seq_len, test_set.num_channels
     ).to(args.device)
     model.load_state_dict(torch.load(args.model_path, map_location=args.device))
