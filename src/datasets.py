@@ -1,3 +1,8 @@
+import os
+import numpy as np
+import torch
+from glob import glob
+
 class ThingsMEGDataset(torch.utils.data.Dataset):
     def __init__(self, split: str, data_dir: str = "data(1)") -> None:
         super().__init__()
