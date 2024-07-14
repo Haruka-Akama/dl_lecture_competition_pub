@@ -18,11 +18,11 @@ def reshape_input(X):
     batch_size, channels, seq_len = X.shape
     height = int(np.sqrt(seq_len))
     width = seq_len // height
-    
-    if height * width != seq_len:
-        width = height + 1
-        height = seq_len // width
-    
+
+    while height * width != seq_len:
+        height -= 1
+        width = seq_len // height
+
     X = X.view(batch_size, channels, height, width)
     return X
 
