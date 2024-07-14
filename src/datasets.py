@@ -1,11 +1,3 @@
-import os
-import numpy as np
-import torch
-from typing import Tuple
-from termcolor import cprint
-from glob import glob
-
-
 class ThingsMEGDataset(torch.utils.data.Dataset):
     def __init__(self, split: str, data_dir: str = "data(1)") -> None:
         super().__init__()
@@ -21,14 +13,14 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, i):
         X_path = os.path.join(self.data_dir, f"{self.split}_X", str(i).zfill(5) + ".pt")
-        X = torch.from_numpy(np.load(X_path))
-        
+        X = torch.load(X_path)  # 修正
+
         subject_idx_path = os.path.join(self.data_dir, f"{self.split}_subject_idxs", str(i).zfill(5) + ".pt")
-        subject_idx = torch.from_numpy(np.load(subject_idx_path))
-        
+        subject_idx = torch.load(subject_idx_path)  # 修正
+
         if self.split in ["train", "val"]:
             y_path = os.path.join(self.data_dir, f"{self.split}_y", str(i).zfill(5) + ".pt")
-            y = torch.from_numpy(np.load(y_path))
+            y = torch.load(y_path)  # 修正
             
             return X, y, subject_idx
         else:
@@ -36,8 +28,8 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         
     @property
     def num_channels(self) -> int:
-        return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.pt")).shape[0]
+        return torch.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.pt")).shape[0]
     
     @property
     def seq_len(self) -> int:
-        return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.pt")).shape[1]
+        return torch.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.pt")).shape[1]
