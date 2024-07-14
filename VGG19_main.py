@@ -9,6 +9,7 @@ import wandb
 from termcolor import cprint
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
+import torchvision.models as model
 
 from src.datasets import ThingsMEGDataset
 from src.VGG19_models import VGG19Classifier, vgg19_bn
