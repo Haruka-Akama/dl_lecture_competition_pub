@@ -10,7 +10,7 @@ from termcolor import cprint
 from tqdm import tqdm
 
 from src.datasets import ThingsMEGDataset
-from src.model import LSTMConvClassifier
+from src.models import LSTMConvClassifier
 from src.utils import set_seed
 
 
