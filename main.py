@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 #from src.datasets_preprocess import ThingsMEGDataset
 from src.datasets import ThingsMEGDataset
-from src.model import LSTMConvClassifier
+from src.models import LSTMConvClassifier
 from src.utils import set_seed
 
 
