@@ -36,8 +36,8 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         
     @property
     def num_channels(self) -> int:
-        return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.npy")).shape[0]
+        return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.pt")).shape[0]
     
     @property
     def seq_len(self) -> int:
-        return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.npy")).shape[1]
+        return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.pt")).shape[1]
