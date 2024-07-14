@@ -46,14 +46,18 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
+    # デバイスの設定
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # VGG19モデルのロード（事前学習済みの重みを使用）
-    weights = VGG19_BN_Weights.DEFAULT
-    model = models.vgg19_bn(weights=weights)
+    model = models.vgg19_bn(pretrained=True)
 
     # 分類層のカスタマイズ
     model.classifier[6] = nn.Linear(4096, train_set.num_classes)
+
+    # モデルをデバイスに移動
+    model = model.to(device)
+
 
     # モデルをデバイスに移動
     model = model.to(device)
