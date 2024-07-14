@@ -17,10 +17,11 @@ from src.utils import set_seed
 def reshape_input(X):
     batch_size, channels, seq_len = X.shape
     height = int(np.sqrt(seq_len))
-    width = height
+    width = seq_len // height
     
     if height * width != seq_len:
-        raise ValueError(f"Invalid shape for input tensor with seq_len {seq_len}, height {height}, width {width}")
+        width = height + 1
+        height = seq_len // width
     
     X = X.view(batch_size, channels, height, width)
     return X
