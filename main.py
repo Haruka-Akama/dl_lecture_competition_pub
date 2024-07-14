@@ -8,11 +8,9 @@ from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
 from tqdm import tqdm
-import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from src.datasets import ThingsMEGDataset
-from src.LSTM_models import ConvLSTMClassifier
+from src.models import BasicConvClassifier
 from src.utils import set_seed
 
 
@@ -41,15 +39,14 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = ConvLSTMClassifier(
+    model = BasicConvClassifier(
         train_set.num_classes, train_set.seq_len, train_set.num_channels
     ).to(args.device)
 
     # ------------------
     #     Optimizer
     # ------------------
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.007, weight_decay=1e-5)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, verbose=True)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     # ------------------
     #   Start training
@@ -90,26 +87,16 @@ def run(args: DictConfig):
             val_loss.append(F.cross_entropy(y_pred, y).item())
             val_acc.append(accuracy(y_pred, y).item())
 
-        # Log metrics and update scheduler
-        avg_train_loss = np.mean(train_loss)
-        avg_val_loss = np.mean(val_loss)
-        avg_train_acc = np.mean(train_acc)
-        avg_val_acc = np.mean(val_acc)
-
-        print(f"Epoch {epoch+1}/{args.epochs} | train loss: {avg_train_loss:.3f} | train acc: {avg_train_acc:.3f} | val loss: {avg_val_loss:.3f} | val acc: {avg_val_acc:.3f}")
-
+        print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc):.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
         torch.save(model.state_dict(), os.path.join(logdir, "model_last.pt"))
         if args.use_wandb:
-            wandb.log({"train_loss": avg_train_loss, "train_acc": avg_train_acc, "val_loss": avg_val_loss, "val_acc": avg_val_acc})
+            wandb.log({"train_loss": np.mean(train_loss), "train_acc": np.mean(train_acc), "val_loss": np.mean(val_loss), "val_acc": np.mean(val_acc)})
         
-        if avg_val_acc > max_val_acc:
+        if np.mean(val_acc) > max_val_acc:
             cprint("New best.", "cyan")
             torch.save(model.state_dict(), os.path.join(logdir, "model_best.pt"))
-            max_val_acc = avg_val_acc
-        
-        # Update the learning rate scheduler
-        scheduler.step(avg_val_loss)
-    
+            max_val_acc = np.mean(val_acc)
+            
     
     # ----------------------------------
     #  Start evaluation with best model
