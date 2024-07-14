@@ -26,7 +26,7 @@ def reshape_input(X):
 
     print(f"Reshaping: batch_size={batch_size}, channels={channels}, seq_len={seq_len} -> height={height}, width={width}")
     
-    X = X.view(256, 271, 1, 281)
+    X = X.view(batch_size, 256, height, width)
     return X
 
 
