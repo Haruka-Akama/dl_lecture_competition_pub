@@ -7,7 +7,7 @@ from glob import glob
 
 
 class ThingsMEGDataset(torch.utils.data.Dataset):
-    def __init__(self, split: str, data_dir: str = "data") -> None:
+    def __init__(self, split: str, data_dir: str = "data(1)") -> None:
         super().__init__()
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
         
