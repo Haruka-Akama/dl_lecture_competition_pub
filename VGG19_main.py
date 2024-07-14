@@ -15,11 +15,13 @@ from src.VGG19_models import VGG19Classifier
 from src.utils import set_seed
 
 def reshape_input(X):
-    # 3次元のテンソル (batch_size, channels, seq_len) を
-    # 4次元のテンソル (batch_size, channels, height, width) に変換します。
     batch_size, channels, seq_len = X.shape
-    height = int(np.sqrt(seq_len))  # シーケンス長を高さと幅に変換
+    height = int(np.sqrt(seq_len))
     width = height
+    
+    if height * width != seq_len:
+        raise ValueError(f"Invalid shape for input tensor with seq_len {seq_len}, height {height}, width {width}")
+    
     X = X.view(batch_size, channels, height, width)
     return X
 
