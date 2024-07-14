@@ -14,6 +14,15 @@ from src.datasets import ThingsMEGDataset
 from src.VGG19_models import VGG19Classifier
 from src.utils import set_seed
 
+def reshape_input(X):
+    # 3次元のテンソル (batch_size, channels, seq_len) を
+    # 4次元のテンソル (batch_size, channels, height, width) に変換します。
+    batch_size, channels, seq_len = X.shape
+    height = int(np.sqrt(seq_len))  # シーケンス長を高さと幅に変換
+    width = height
+    X = X.view(batch_size, channels, height, width)
+    return X
+
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):
     set_seed(args.seed)
@@ -73,6 +82,9 @@ def run(args: DictConfig):
         model.train()
         for X, y, subject_idxs in tqdm(train_loader, desc="Train"):
             X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
+            
+            # ここで入力テンソルを変換
+            X = reshape_input(X)
 
             y_pred = model(X)
             
@@ -90,6 +102,9 @@ def run(args: DictConfig):
         for X, y, subject_idxs in tqdm(val_loader, desc="Validation"):
             X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
             
+            # ここで入力テンソルを変換
+            X = reshape_input(X)
+
             with torch.no_grad():
                 y_pred = model(X)
             
@@ -124,6 +139,7 @@ def run(args: DictConfig):
     preds = [] 
     model.eval()
     for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
+        X = reshape_input(X)
         preds.append(model(X.to(args.device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
