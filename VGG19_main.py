@@ -14,21 +14,6 @@ from src.datasets import ThingsMEGDataset
 from src.VGG19_models import VGG19Classifier
 from src.utils import set_seed
 
-# テンソル形状の変換関数
-def reshape_input(X):
-    batch_size, channels, seq_len = X.shape
-    height = int(np.sqrt(seq_len))
-    width = seq_len // height
-
-    while height * width != seq_len:
-        height -= 1
-        width = seq_len // height
-
-    print(f"Reshaping: batch_size={batch_size}, channels={channels}, seq_len={seq_len} -> height={height}, width={width}")
-    
-    X = X.view(batch_size, 256, height, width)
-    return X
-
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):
@@ -61,8 +46,13 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = VGG19Classifier(num_classes=train_set.num_classes)
-    model = model.to(args.device)
+    model = VGG19Classifier(
+        train_set.num_classes, train_set.seq_len, train_set.num_channels
+    ).to(args.device)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    weights = VGG19_BN_Weights.DEFAULT
+    model = vgg19_bn(weights=weights)
+    model.classifier[6] = torch.nn.Linear(4096, train_set.num_classes)
 
     # ------------------
     #     Optimizer
