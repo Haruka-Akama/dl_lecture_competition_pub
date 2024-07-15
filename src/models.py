@@ -38,17 +38,20 @@ class LSTMConvClassifier(nn.Module):
             dropout=dropout_prob
         )
 
-        self.dropout = nn.Dropout(dropout_prob)
+        self.dropout1 = nn.Dropout(dropout_prob)
+        self.dropout2 = nn.Dropout(dropout_prob)
 
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
             Rearrange("b d 1 -> b d"),
             nn.Linear(lstm_hidden_dim, num_classes),
+            nn.Dropout(dropout_prob)  # Head にもドロップアウトを追加
         )
 
     def forward(self, X: torch.Tensor, subject_idxs: torch.Tensor) -> torch.Tensor:
         X = self.blocks(X)
         X = self.batchnorm(X)
+        X = self.dropout1(X)  # 畳み込みブロックの後にドロップアウトを追加
         
         subject_emb = self.subject_embedding(subject_idxs)
         subject_emb = subject_emb.unsqueeze(-1).expand(-1, -1, X.shape[-1])
@@ -56,7 +59,7 @@ class LSTMConvClassifier(nn.Module):
         
         X = self.layernorm(X.permute(0, 2, 1)).permute(0, 2, 1)
         X, _ = self.lstm(X.permute(0, 2, 1))
-        X = self.dropout(X)
+        X = self.dropout2(X)  # LSTMの後にドロップアウトを追加
         return self.head(X.permute(0, 2, 1))
 
 class ConvBlock(nn.Module):
@@ -91,12 +94,14 @@ class ConvBlock(nn.Module):
 
         X = F.gelu(self.batchnorm0(X))
         X = self.layernorm0(X.permute(0, 2, 1)).permute(0, 2, 1)
+        X = self.dropout(X)  # 畳み込み層の後にドロップアウトを追加
 
         X = self.conv1(X) + X  # skip connection
         X = F.gelu(self.batchnorm1(X))
         X = self.layernorm1(X.permute(0, 2, 1)).permute(0, 2, 1)
+        X = self.dropout(X)  # 畳み込み層の後にドロップアウトを追加
 
-        return self.dropout(X)
+        return X
 
 # Usage example
 model = LSTMConvClassifier(
