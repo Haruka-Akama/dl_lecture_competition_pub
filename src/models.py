@@ -16,8 +16,7 @@ class LSTMConvClassifier(nn.Module):
         subject_emb_dim: int = 32,
         lstm_hidden_dim: int = 64,
         lstm_layers: int = 2,
-        dropout_prob: float = 0.5,
-        weight_decay: float = 1e-5
+        dropout_prob: float = 0.5
     ) -> None:
         super().__init__()
 
