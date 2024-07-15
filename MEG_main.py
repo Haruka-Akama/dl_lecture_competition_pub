@@ -11,11 +11,11 @@ from termcolor import cprint
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
-from datasets import ThingsMEGDataset, ImageDataset
-from models import LSTMConvClassifier
-from utils import set_seed
+from MEG_datasets import ThingsMEGDataset, ImageDataset
+from MEG_models import fclip
+from MEG_utils import set_seed
 
-@hydra.main(version_base=None, config_path="configs", config_name="config")
+@hydra.main(version_base=None, config_path="configs", config_name="MEG_config")
 def run(args: DictConfig):
     set_seed(args.seed)
     logdir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
@@ -43,19 +43,19 @@ def run(args: DictConfig):
 
     # 画像データセット
     transform = transforms.Compose([transforms.ToTensor()])
-    image_train_set = ImageDataset(split='train', images_dir='path/to/Images', data_dir=args.data_dir, transform=transform)
+    image_train_set = ImageDataset(split='train', images_dir='workspace/dl_lecture_competition_pub/data/Images', data_dir=args.data_dir, transform=transform)
     image_train_loader = DataLoader(image_train_set, shuffle=True, **loader_args)
 
-    image_val_set = ImageDataset(split='val', images_dir='path/to/Images', data_dir=args.data_dir, transform=transform)
+    image_val_set = ImageDataset(split='val', images_dir='workspace/dl_lecture_competition_pub/data/Images', data_dir=args.data_dir, transform=transform)
     image_val_loader = DataLoader(image_val_set, shuffle=False, **loader_args)
 
-    image_test_set = ImageDataset(split='test', images_dir='path/to/Images', data_dir=args.data_dir, transform=transform)
+    image_test_set = ImageDataset(split='test', images_dir='workspace/dl_lecture_competition_pub/data/Images', data_dir=args.data_dir, transform=transform)
     image_test_loader = DataLoader(image_test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers)
 
     # ------------------
     #       Model
     # ------------------
-    model = LSTMConvClassifier(
+    model = fclip(
         num_classes=train_set.num_classes,
         seq_len=train_set.seq_len,
         in_channels=train_set.num_channels,

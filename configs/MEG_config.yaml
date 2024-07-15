@@ -4,7 +4,8 @@
 seed: 1234
 device: cuda:0
 use_wandb: False
-data_dir: data
+data_dir: workspace/dl_lecture_competition_pub/data
+images_dir: workspace/dl_lecture_competition_pub/data/Images
 
 # DataLoader settings
 batch_size: 64

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 class SpatialAttentionLayer(nn.Module):
     def __init__(self, num_input_channels, num_output_channels, harmonics=32):
@@ -11,7 +12,7 @@ class SpatialAttentionLayer(nn.Module):
         self.fourier_weights = nn.Parameter(torch.randn(num_output_channels, harmonics, harmonics, 2))
 
     def forward(self, X, sensor_locs):
-        sensor_locs = (sensor_locs - sensor_locs.min(0)) / (sensor_locs.max(0) - sensor_locs.min(0))
+        sensor_locs = (sensor_locs - sensor_locs.min(0)[0]) / (sensor_locs.max(0)[0] - sensor_locs.min(0)[0])
         attention_maps = []
         for j in range(self.num_output_channels):
             a_j = torch.zeros(sensor_locs.shape[0])
@@ -35,7 +36,7 @@ class SubjectSpecificLayer(nn.Module):
 
     def forward(self, X, subject_id):
         M_s = self.subject_matrices[subject_id]
-        return torch.einsum('ij,jkl->ikl', M_s, X)
+        return torch.einsum('bij,bjk->bik', M_s, X)
 
 class ResidualDilatedConvBlock(nn.Module):
     def __init__(self, num_input_channels, num_output_channels):
@@ -70,9 +71,9 @@ class fclip(nn.Module):
         self.conv_final2 = nn.Conv1d(640, num_output_channels, kernel_size=1)
         self.classifier = nn.Linear(num_output_channels, num_classes)
 
-    def forward(self, X, subject_id, sensor_locs):
+    def forward(self, X, subject_ids, sensor_locs):
         X = self.spatial_attention(X, sensor_locs)
-        X = self.subject_specific(X, subject_id)
+        X = self.subject_specific(X, subject_ids)
         for block in self.residual_blocks:
             X = block(X)
         X = self.conv_final1(X)
@@ -82,23 +83,27 @@ class fclip(nn.Module):
         X = self.classifier(X)
         return X
 
-# 仮のセンサー位置と被験者IDを生成（実際のデータに基づいて適切に設定する必要があります）
+# 仮のセンサー位置と被験者IDを生成
 num_sensors = 306  # 仮のセンサー数
 sensor_locs = np.random.rand(num_sensors, 2)  # 2D位置
-subject_id = 0  # 仮の被験者ID
 
 # データをテンソルに変換
-data = np.random.rand(256, num_sensors, 1000)  # 仮のデータ（バッチサイズ256、センサー数306、サンプル数1000）
+batch_size = 256  # 仮のバッチサイズ
+data = np.random.rand(batch_size, num_sensors, 22448)  # 仮のデータ（バッチサイズ256、センサー数306、サンプル数1000）
 X = torch.tensor(data, dtype=torch.float32)
 sensor_locs = torch.tensor(sensor_locs, dtype=torch.float32)
+
+# 被験者IDの設定
+subject_ids = np.random.randint(0, 4, size=batch_size)  # 0から3までの被験者IDをランダムに生成
+subject_ids = torch.tensor(subject_ids, dtype=torch.long)
 
 # fclipモデルを初期化
 num_input_channels = X.shape[1]
 num_output_channels = 128  # 任意の出力チャネル数
 num_subjects = 4  # 仮の被験者数
-num_classes = 10  # クラス数（画像カテゴリ数）
+num_classes = 1854  # クラス数（画像カテゴリ数）
 model = fclip(num_input_channels, num_output_channels, num_subjects, num_classes)
 
 # モデルの出力を取得
-Z = model(X, subject_id, sensor_locs)
+Z = model(X, subject_ids, sensor_locs)
 print(f"Output shape: {Z.shape}")
