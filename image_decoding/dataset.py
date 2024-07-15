@@ -24,12 +24,12 @@ class ThingsMEGCLIPDataset(torch.utils.data.Dataset):
         self.num_clip_tokens = args.num_clip_tokens
         self.align_token = args.align_token
 
-        sample_attrs_paths = [
-            os.path.join(
-                args.thingsmeg_root, f"sourcedata/sample_attributes_P{i+1}.csv"
-            )
-            for i in range(self.num_subjects)
-        ]
+        # sample_attrs_paths = [
+        #     os.path.join(
+        #         args.thingsmeg_root, f"sourcedata/sample_attributes_P{i+1}.csv"
+        #     )
+        #     for i in range(self.num_subjects)
+        # ]
 
         X_list = []
         Y_list = []
