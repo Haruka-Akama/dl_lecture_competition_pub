@@ -127,6 +127,12 @@ def run(args: DictConfig):
         
         cosine_scheduler.step()
         step_scheduler.step()
+
+        # 現在の学習率を取得して表示
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Current learning rate: {current_lr}")
+        if args.use_wandb:
+            wandb.log({"learning_rate": current_lr})
     
     # ----------------------------------
     #  Start evaluation with best model
