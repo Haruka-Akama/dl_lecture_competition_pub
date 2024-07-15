@@ -272,4 +272,4 @@ def train(args: DictConfig, run_dir: str):
                 )
 
         if no_best_counter > args.patience:
-            cprint(f"Early stopping at epoch {epoch}"
+            cprint(f"Early stopping at epoch {epoch}")
