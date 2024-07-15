@@ -279,7 +279,7 @@ def train(args: DictConfig, run_dir: str):
             break
 
 
-@hydra.main(version_base=None, config_path="./", config_name="config")
+@hydra.main(version_base=None, config_path="./", config_name="META_config")
 def run(args: DictConfig) -> None:
     # global args, sweep
 
@@ -290,7 +290,7 @@ def run(args: DictConfig) -> None:
 
     run_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
 
-    OmegaConf.save(config=args, f=os.path.join(run_dir, "config.yaml"))
+    OmegaConf.save(config=args, f=os.path.join(run_dir, "META_config.yaml"))
 
     wandb.init(
         project=args.wandb.project,

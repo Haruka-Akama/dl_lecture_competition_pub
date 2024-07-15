@@ -1,15 +1,15 @@
 # Paths
-thingsmeg_root: ./things-meg/
-meg_dir: ${thingsmeg_root}derivatives/preprocessed/
+#thingsmeg_root: ./things-meg/
+meg_dir: data
 
-things_root: ./things/
-things_dir: ${things_root}osfstorage/THINGS/
-images_dir: ${things_dir}Images/
-metadata_dir: ${things_dir}Metadata/
+#things_root: ./things/
+#things_dir: ${things_root}osfstorage/THINGS/
+images_dir: Images
+#metadata_dir: ${things_dir}Metadata/
 
-save_dir: ./data
+save_dir: outputs
 
-montage_path: ./assets/thingsmeg_montage.npy
+montage_path: montage/thingsmeg_montage.npy
 
 # Preprocessing
 skip_meg: False
@@ -17,12 +17,16 @@ skip_images: True
 
 vision_model: ViT-L/14
 
-brain_sfreq: 120
+#brain_sfreq: 120
+
 # There are only 169 time points after resampling Hebart preprocessed data to 120 Hz, so it seems roughly 1.41 seconds.
 # This is a bit smaller than 181 time points which they have in the Meta paper, but they also say that 1.25 seconds after the onset is not important for retrieval.
-seq_len: 1.41
+
+#seq_len: 1.41
+
 # One channel seems to be removed by Hebart's preprocessing (the Meta paper has 272 channels).
-num_channels: 271
+
+#num_channels: 271
 clamp_lim: 5.0
 
 

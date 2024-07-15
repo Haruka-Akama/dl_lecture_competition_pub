@@ -78,7 +78,7 @@ def encode_images(y_list: List[str], preprocess, clip_model, device) -> torch.Te
         ).float()
 
 
-@hydra.main(version_base=None, config_path="./", config_name="config")
+@hydra.main(version_base=None, config_path="./", config_name="META_config")
 def run(args: DictConfig) -> None:
     meg_paths = [
         os.path.join(args.meg_dir, f"preprocessed_P{i+1}-epo.fif") for i in range(4)

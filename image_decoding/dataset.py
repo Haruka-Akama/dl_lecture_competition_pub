@@ -16,7 +16,7 @@ class ThingsMEGCLIPDataset(torch.utils.data.Dataset):
     def __init__(self, args) -> None:
         super().__init__()
 
-        self.things_dir = args.things_dir
+        #self.things_dir = args.things_dir
         self.preproc_dir = os.path.join(args.save_dir, "preproc")
 
         self.num_subjects = 4
@@ -108,52 +108,52 @@ class ThingsMEGCLIPDataset(torch.utils.data.Dataset):
         return self.X[i], self.Y[i], self.subject_idxs[i], self.y_idxs[i], self.categories[i], self.high_categories[i]  # fmt: skip
 
     @staticmethod
-    def _make_split(
-        sample_attrs: np.ndarray,
-        large_test_set: bool = True,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Args:
-            sample_attrs ( 27048, 18 ): Elements are strs.
-            refined (bool): If True, use splits by Meta, modified from Hebart et al., 2023.
-        Returns:
-            train_trial_idxs ( 22248, ): _description_
-            test_trial_idxs ( 2400, ): _description_
-        """
-        trial_types = sample_attrs[:, 0]  # ( 27048, )
+    # def _make_split(
+    #     sample_attrs: np.ndarray,
+    #     large_test_set: bool = True,
+    # ) -> Tuple[torch.Tensor, torch.Tensor]:
+    #     """
+    #     Args:
+    #         sample_attrs ( 27048, 18 ): Elements are strs.
+    #         refined (bool): If True, use splits by Meta, modified from Hebart et al., 2023.
+    #     Returns:
+    #         train_trial_idxs ( 22248, ): _description_
+    #         test_trial_idxs ( 2400, ): _description_
+    #     """
+    #     trial_types = sample_attrs[:, 0]  # ( 27048, )
 
-        if not large_test_set:
-            # Small test set
-            train_trial_idxs = np.where(trial_types == "exp")[0]  # ( 22248, )
-            test_trial_idxs = np.where(trial_types == "test")[0]  # ( 2400, )
+    #     if not large_test_set:
+    #         # Small test set
+    #         train_trial_idxs = np.where(trial_types == "exp")[0]  # ( 22248, )
+    #         test_trial_idxs = np.where(trial_types == "test")[0]  # ( 2400, )
 
-            assert len(train_trial_idxs) == 22248 and len(test_trial_idxs) == 2400
-        else:
-            category_idxs = sample_attrs[:, 2].astype(int)  # ( 27048, )
+    #         assert len(train_trial_idxs) == 22248 and len(test_trial_idxs) == 2400
+    #     else:
+    #         category_idxs = sample_attrs[:, 2].astype(int)  # ( 27048, )
 
-            test_trial_idxs = np.where(trial_types == "test")[0]  # ( 2400, )
-            test_category_idxs = np.unique(np.take(category_idxs, test_trial_idxs))
-            # ( 200, )
+    #         test_trial_idxs = np.where(trial_types == "test")[0]  # ( 2400, )
+    #         test_category_idxs = np.unique(np.take(category_idxs, test_trial_idxs))
+    #         # ( 200, )
 
-            test_trial_idxs = np.where(
-                np.logical_and(
-                    np.isin(category_idxs, test_category_idxs),
-                    np.logical_not(trial_types == "test"),
-                )
-            )[0]
-            # ( 2400, )
+    #         test_trial_idxs = np.where(
+    #             np.logical_and(
+    #                 np.isin(category_idxs, test_category_idxs),
+    #                 np.logical_not(trial_types == "test"),
+    #             )
+    #         )[0]
+    #         # ( 2400, )
 
-            train_trial_idxs = np.where(
-                np.logical_and(
-                    trial_types == "exp",
-                    np.logical_not(np.isin(category_idxs, test_category_idxs)),
-                )
-            )[0]
-            # ( 19848, )
+    #         train_trial_idxs = np.where(
+    #             np.logical_and(
+    #                 trial_types == "exp",
+    #                 np.logical_not(np.isin(category_idxs, test_category_idxs)),
+    #             )
+    #         )[0]
+    #         # ( 19848, )
 
-            assert len(train_trial_idxs) == 19848 and len(test_trial_idxs) == 2400
+    #         assert len(train_trial_idxs) == 19848 and len(test_trial_idxs) == 2400
 
-        return torch.from_numpy(train_trial_idxs), torch.from_numpy(test_trial_idxs)
+    #     return torch.from_numpy(train_trial_idxs), torch.from_numpy(test_trial_idxs)
 
     def _extract_token(self, Y: torch.Tensor) -> torch.Tensor:
         if Y.ndim == 2:
@@ -173,34 +173,48 @@ class ThingsMEGCLIPDataset(torch.utils.data.Dataset):
 
         return Y
 
-    def _to_high_categories(self, categories: torch.Tensor) -> torch.Tensor:
-        """_summary_
-        Args:
-            categories ( 27048 * 4, ): Elements are integers of [0, 1854].
-                End value 1854 is for catch trials.
-            high_categories ( 1854, 27 ): Each row is a zero to three -hot vector.
-        Returns:
-            high_categories ( 27048 * 4, ): Elements are integers of [0, 27].
-        """
-        high_categories = np.loadtxt(
-            os.path.join(
-                self.things_dir, "27 higher-level categories/category_mat_manual.tsv"
-            ),
-            dtype=int,
-            delimiter="\t",
-            skiprows=1,
-        )  # ( 1854, 27 )
+    # def _to_high_categories(self, categories: torch.Tensor) -> torch.Tensor:
+    #     """_summary_
+    #     Args:
+    #         categories ( 27048 * 4, ): Elements are integers of [0, 1854].
+    #             End value 1854 is for catch trials.
+    #         high_categories ( 1854, 27 ): Each row is a zero to three -hot vector.
+    #     Returns:
+    #         high_categories ( 27048 * 4, ): Elements are integers of [0, 27].
+    #     """
+    #     high_categories = np.loadtxt(
+    #         os.path.join(
+    #             self.things_dir, "27 higher-level categories/category_mat_manual.tsv"
+    #         ),
+    #         dtype=int,
+    #         delimiter="\t",
+    #         skiprows=1,
+    #     )  # ( 1854, 27 )
 
-        # Set categories that are not in any of higher categories as "uncategorized".
-        unc = np.where(high_categories.sum(axis=1) == 0)[0]
-        # This takes the first higher-category for categories that are in multiple higher-categories.
-        high_categories = np.argmax(high_categories, axis=1)  # ( 1854, )
+    #     # Set categories that are not in any of higher categories as "uncategorized".
+    #     unc = np.where(high_categories.sum(axis=1) == 0)[0]
+    #     # This takes the first higher-category for categories that are in multiple higher-categories.
+    #     high_categories = np.argmax(high_categories, axis=1)  # ( 1854, )
 
-        # Higher-category 27 for "uncategorized" and catch trials.
-        high_categories[unc] = high_categories.max() + 1  # ( 1854, )
-        high_categories = np.append(high_categories, high_categories.max())  # ( 1855, )
+    #     # Higher-category 27 for "uncategorized" and catch trials.
+    #     high_categories[unc] = high_categories.max() + 1  # ( 1854, )
+    #     high_categories = np.append(high_categories, high_categories.max())  # ( 1855, )
 
-        return torch.from_numpy(high_categories)[categories]
+    #     return torch.from_numpy(high_categories)[categories]
+    
+
+    @property
+    def num_channels(self) -> int:
+        return self.X.shape[1]
+
+    @property
+    def seq_len(self) -> int:
+        return self.X.shape[2]
+    
+    @property
+    def brain_sfreq(self) -> float:
+        return self._sampling_frequency
+    
 
 
 # class ThingsMEGDecoderDataset(torch.utils.data.Dataset):
