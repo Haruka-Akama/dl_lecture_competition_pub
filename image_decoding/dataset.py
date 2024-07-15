@@ -16,20 +16,12 @@ class ThingsMEGCLIPDataset(torch.utils.data.Dataset):
     def __init__(self, args) -> None:
         super().__init__()
 
-        #self.things_dir = args.things_dir
         self.preproc_dir = os.path.join(args.save_dir, "preproc")
 
         self.num_subjects = 4
         self.large_test_set = args.large_test_set
         self.num_clip_tokens = args.num_clip_tokens
         self.align_token = args.align_token
-
-        # sample_attrs_paths = [
-        #     os.path.join(
-        #         args.thingsmeg_root, f"sourcedata/sample_attributes_P{i+1}.csv"
-        #     )
-        #     for i in range(self.num_subjects)
-        # ]
 
         X_list = []
         Y_list = []
@@ -39,7 +31,9 @@ class ThingsMEGCLIPDataset(torch.utils.data.Dataset):
         train_idxs_list = []
         test_idxs_list = []
 
-        for subject_id, sample_attrs_path in enumerate(sample_attrs_paths):
+        for subject_id in range(self.num_subjects):
+            sample_attrs_path = os.path.join(args.thingsmeg_root, f"sourcedata/sample_attributes_P{subject_id+1}.csv")
+            
             # MEG
             X_list.append(
                 torch.load(os.path.join(self.preproc_dir, f"MEG_P{subject_id+1}.pt"))
@@ -100,6 +94,7 @@ class ThingsMEGCLIPDataset(torch.utils.data.Dataset):
 
         del X_list, Y_list, categories_list, y_idxs_list, subject_idxs_list, train_idxs_list, test_idxs_list  # fmt: skip
         gc.collect()
+
 
     def __len__(self) -> int:
         return len(self.Y)
