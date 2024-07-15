@@ -9,10 +9,6 @@ use_wandb: False
 
 data_dir: data
 
-# Data Preprocessing
-resample_freq: 100  # 例: リサンプリングの周波数
-filter_freq: [1, 40]  # 例: バンドパスフィルタの周波数帯域
-baseline_correction: True  # 例: ベースライン補正の有無
 
 # Model Hyperparameters
 hid_dim: 128
