@@ -27,6 +27,9 @@ from image_decoding.utils import (
     count_parameters,
     plot_latents_2d,
 )
+import sys
+sys.path.append('/content/drive/.shortcut-targets-by-id/1qxAFAKovUXm28TMQUFxKljs01WcTHCeY/ColabData/dl_lecture_competition_pub/')
+
 
 
 def train(args: DictConfig, run_dir: str):
