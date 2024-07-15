@@ -13,7 +13,7 @@ montage_path: montage/thingsmeg_montage.npy
 
 # Preprocessing
 skip_meg: False
-skip_images: True
+skip_images: False
 
 vision_model: ViT-L/14
 

@@ -17,7 +17,7 @@ matplotlib.use("Agg")
 
 class Models:
     """
-    This class is implemented so that vision encoder could also betrained
+    This class is implemented so that vision encoder could also be trained
     but it is not used for this project.
     """
 

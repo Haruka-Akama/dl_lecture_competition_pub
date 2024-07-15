@@ -27,10 +27,6 @@ from image_decoding.utils import (
     count_parameters,
     plot_latents_2d,
 )
-import sys
-sys.path.append('/content/drive/.shortcut-targets-by-id/1qxAFAKovUXm28TMQUFxKljs01WcTHCeY/ColabData/dl_lecture_competition_pub/')
-
-
 
 def train(args: DictConfig, run_dir: str):
     random.seed(args.seed)
@@ -67,7 +63,7 @@ def train(args: DictConfig, run_dir: str):
     # ---------------------
     #        Model
     # ---------------------
-    subjects = dataset.subject_names if hasattr(dataset, "subject_names") else dataset.num_subjects  # fmt: skip
+    subjects = dataset.num_subjects  # Use num_subjects attribute from the dataset
 
     brain_encoder = BrainEncoder(args, subjects=subjects).to(device)
 
@@ -100,7 +96,7 @@ def train(args: DictConfig, run_dir: str):
         scheduler = None
 
     # -----------------------
-    #     Strat training
+    #     Start training
     # -----------------------
     max_test_acc = 0.0
     no_best_counter = 0
@@ -180,7 +176,6 @@ def train(args: DictConfig, run_dir: str):
             X, Y = X.to(device), Y.to(device)
 
             with torch.no_grad():
-                # NOTE: sequential_apply doesn't do sequential application if batch_size == X.shape[0].
                 Z = sequential_apply(
                     X,
                     brain_encoder,
@@ -253,7 +248,6 @@ def train(args: DictConfig, run_dir: str):
 
         models.save(run_dir)
 
-        # NOTE: This is mean over multiple ks.
         if np.mean(test_topk_accs) > max_test_acc:
             cprint(f"New best. Saving models to {run_dir}", color="cyan")
             models.save(run_dir, best=True)
@@ -268,67 +262,14 @@ def train(args: DictConfig, run_dir: str):
                 plot_latents_2d(
                     np.concatenate(train_Y_list),
                     np.concatenate(train_categories_list),
-                    save_path=os.path.join(run_dir, f"plots/image_latents/epoch{epoch}.png"),  # fmt: skip
+                    save_path=os.path.join(run_dir, f"plots/image_latents/epoch{epoch}.png"),
                 )
             if epoch % 50 == 0:
                 plot_latents_2d(
                     np.concatenate(train_Z_list),
                     np.concatenate(train_categories_list),
-                    save_path=os.path.join(run_dir, f"plots/ecog_latents/epoch{epoch}.png"),  # fmt: skip
+                    save_path=os.path.join(run_dir, f"plots/ecog_latents/epoch{epoch}.png"),
                 )
 
         if no_best_counter > args.patience:
-            cprint(f"Early stopping at epoch {epoch}", color="cyan")
-            break
-
-
-@hydra.main(version_base=None, config_path="./", config_name="META_config")
-def run(args: DictConfig) -> None:
-    # global args, sweep
-
-    # NOTE: Using default.yaml only for specifying the experiment settings yaml.
-    # args = OmegaConf.load(os.path.join("configs", _args.config_path))
-
-    # sweep = _args.sweep
-
-    run_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
-
-    OmegaConf.save(config=args, f=os.path.join(run_dir, "META_config.yaml"))
-
-    wandb.init(
-        project=args.wandb.project,
-        config=OmegaConf.to_container(args),
-        name=args.wandb.name,
-        mode=args.wandb.mode,
-        job_type="train",
-    )
-
-    if args.wandb.sweep:
-        wandb.init(config=None)
-
-        run_name += "_" + "".join(
-            [
-                f"{k}-{v:.3f}_" if isinstance(v, float) else f"{k}-{v}_"
-                for k, v in wandb.config.items()
-            ]
-        )
-
-        wandb.run.name = run_name
-        args.__dict__.update(wandb.config)
-        cprint(wandb.config, "cyan")
-        wandb.config.update(args.__dict__)
-
-    if args.wandb.sweep:
-        sweep_config = OmegaConf.to_container(
-            args.wandb.sweep_config, resolve=True, throw_on_missing=True
-        )
-
-        sweep_id = wandb.sweep(sweep_config)  # , project=args.project_name)
-
-        wandb.agent(sweep_id, partial(train, args=args), count=args.wandb.sweep_count)
-    else:
-        train(args, run_dir)
-
-
-if __name__ == "__main__":
-    run()
+            cprint(f"Early stopping at epoch {epoch}", color以下のコードは、修正したデータセットに合わせてトレーニングコードを更新したものです。
