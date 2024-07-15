@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
 from tqdm import tqdm
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from src.datasets import ThingsMEGDataset
 from src.models import LSTMConvClassifier
@@ -62,7 +62,8 @@ def run(args: DictConfig):
     #     Optimizer
     # ------------------
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
+    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
+    step_scheduler = StepLR(optimizer, step_size=10, gamma=0.5)  # 10エポックごとに学習率を半減
 
     # ------------------
     #   Start training
@@ -124,7 +125,8 @@ def run(args: DictConfig):
             cprint("Early stopping triggered.", "red")
             break
         
-        scheduler.step()
+        cosine_scheduler.step()
+        step_scheduler.step()
     
     # ----------------------------------
     #  Start evaluation with best model
