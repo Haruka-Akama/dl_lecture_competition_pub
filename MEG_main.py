@@ -2,18 +2,18 @@ import os
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from torchmetrics import Accuracy
 import hydra
 from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
 from tqdm import tqdm
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
-from src.datasets import ThingsMEGDataset
-from src.models import LSTMConvClassifier
-from src.utils import set_seed
-
+from datasets import ThingsMEGDataset, ImageDataset
+from models import LSTMConvClassifier
+from utils import set_seed
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):
@@ -30,18 +30,27 @@ def run(args: DictConfig):
     print("Debug start")
         
     train_set = ThingsMEGDataset("train", args.data_dir)
-    train_loader = torch.utils.data.DataLoader(train_set, shuffle=True, **loader_args)
+    train_loader = DataLoader(train_set, shuffle=True, **loader_args)
     print("Train load complete")
     
     val_set = ThingsMEGDataset("val", args.data_dir)
-    val_loader = torch.utils.data.DataLoader(val_set, shuffle=False, **loader_args)
+    val_loader = DataLoader(val_set, shuffle=False, **loader_args)
     print("val load complete")
 
     test_set = ThingsMEGDataset("test", args.data_dir)
-    test_loader = torch.utils.data.DataLoader(
-        test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers
-    )
+    test_loader = DataLoader(test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers)
     print("test load complete")
+
+    # 画像データセット
+    transform = transforms.Compose([transforms.ToTensor()])
+    image_train_set = ImageDataset(split='train', images_dir='path/to/Images', data_dir=args.data_dir, transform=transform)
+    image_train_loader = DataLoader(image_train_set, shuffle=True, **loader_args)
+
+    image_val_set = ImageDataset(split='val', images_dir='path/to/Images', data_dir=args.data_dir, transform=transform)
+    image_val_loader = DataLoader(image_val_set, shuffle=False, **loader_args)
+
+    image_test_set = ImageDataset(split='test', images_dir='path/to/Images', data_dir=args.data_dir, transform=transform)
+    image_test_loader = DataLoader(image_test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers)
 
     # ------------------
     #       Model
@@ -62,7 +71,8 @@ def run(args: DictConfig):
     #     Optimizer
     # ------------------
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = StepLR(optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma)
+    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
+    step_scheduler = StepLR(optimizer, step_size=10, gamma=0.5)  # 10エポックごとに学習率を半減
 
     # ------------------
     #   Start training
@@ -124,13 +134,8 @@ def run(args: DictConfig):
             cprint("Early stopping triggered.", "red")
             break
         
-        scheduler.step()
-
-        # 現在の学習率を取得して表示
-        current_lr = optimizer.param_groups[0]['lr']
-        print(f"Current learning rate: {current_lr}")
-        if args.use_wandb:
-            wandb.log({"learning_rate": current_lr})
+        cosine_scheduler.step()
+        step_scheduler.step()
     
     # ----------------------------------
     #  Start evaluation with best model
@@ -139,7 +144,7 @@ def run(args: DictConfig):
 
     preds = [] 
     model.eval()
-    for X, subject_idxs in tqdm(test_loader, desc="Evaluation"):        
+    for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
         preds.append(model(X.to(args.device), subject_idxs.to(args.device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()

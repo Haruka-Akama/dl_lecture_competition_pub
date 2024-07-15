@@ -1,4 +1,4 @@
-import os, sys
+import os
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -8,11 +8,11 @@ from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
 from tqdm import tqdm
+from torch.optim.lr_scheduler import StepLR
 
 from src.datasets import ThingsMEGDataset
-from src.models import BasicConvClassifier
+from src.models import LSTMConvClassifier, CLIPLoss
 from src.utils import set_seed
-
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):
@@ -21,32 +21,50 @@ def run(args: DictConfig):
     
     if args.use_wandb:
         wandb.init(mode="online", dir=logdir, project="MEG-classification")
-
+    
     # ------------------
     #    Dataloader
     # ------------------
     loader_args = {"batch_size": args.batch_size, "num_workers": args.num_workers}
-    
+    print("Debug start")
+        
     train_set = ThingsMEGDataset("train", args.data_dir)
     train_loader = torch.utils.data.DataLoader(train_set, shuffle=True, **loader_args)
+    print("Train load complete")
+    
     val_set = ThingsMEGDataset("val", args.data_dir)
     val_loader = torch.utils.data.DataLoader(val_set, shuffle=False, **loader_args)
+    print("val load complete")
+
     test_set = ThingsMEGDataset("test", args.data_dir)
     test_loader = torch.utils.data.DataLoader(
         test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers
     )
+    print("test load complete")
 
     # ------------------
     #       Model
     # ------------------
-    model = BasicConvClassifier(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels
+    model = LSTMConvClassifier(
+        num_classes=train_set.num_classes,
+        seq_len=train_set.seq_len,
+        in_channels=train_set.num_channels,
+        hid_dim=args.hid_dim,
+        num_blocks=args.num_blocks,
+        kernel_size=args.kernel_size,
+        lstm_hidden_dim=args.lstm_hidden_dim,
+        lstm_layers=args.lstm_layers,
+        dropout_prob=args.dropout_prob
     ).to(args.device)
 
     # ------------------
     #     Optimizer
     # ------------------
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = StepLR(optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma)
+
+    # CLIP Loss
+    clip_loss_fn = CLIPLoss(temperature=0.1)
 
     # ------------------
     #   Start training
@@ -55,6 +73,9 @@ def run(args: DictConfig):
     accuracy = Accuracy(
         task="multiclass", num_classes=train_set.num_classes, top_k=10
     ).to(args.device)
+    
+    early_stopping_patience = 30
+    early_stopping_counter = 0
       
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}/{args.epochs}")
@@ -63,40 +84,56 @@ def run(args: DictConfig):
         
         model.train()
         for X, y, subject_idxs in tqdm(train_loader, desc="Train"):
-            X, y = X.to(args.device), y.to(args.device)
+            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
 
-            y_pred = model(X)
+            z = model(X, subject_idxs)
             
-            loss = F.cross_entropy(y_pred, y)
+            # CLIP loss calculation
+            loss = clip_loss_fn(z, y)
             train_loss.append(loss.item())
             
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
-            acc = accuracy(y_pred, y)
+            acc = accuracy(z, y)
             train_acc.append(acc.item())
 
         model.eval()
         for X, y, subject_idxs in tqdm(val_loader, desc="Validation"):
-            X, y = X.to(args.device), y.to(args.device)
+            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
             
             with torch.no_grad():
-                y_pred = model(X)
+                z = model(X, subject_idxs)
             
-            val_loss.append(F.cross_entropy(y_pred, y).item())
-            val_acc.append(accuracy(y_pred, y).item())
+            val_loss.append(clip_loss_fn(z, y).item())
+            val_acc.append(accuracy(z, y).item())
 
         print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc):.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
         torch.save(model.state_dict(), os.path.join(logdir, "model_last.pt"))
         if args.use_wandb:
             wandb.log({"train_loss": np.mean(train_loss), "train_acc": np.mean(train_acc), "val_loss": np.mean(val_loss), "val_acc": np.mean(val_acc)})
         
-        if np.mean(val_acc) > max_val_acc:
+        mean_val_acc = np.mean(val_acc)
+        if mean_val_acc > max_val_acc:
             cprint("New best.", "cyan")
             torch.save(model.state_dict(), os.path.join(logdir, "model_best.pt"))
-            max_val_acc = np.mean(val_acc)
-            
+            max_val_acc = mean_val_acc
+            early_stopping_counter = 0
+        else:
+            early_stopping_counter += 1
+        
+        if early_stopping_counter >= early_stopping_patience:
+            cprint("Early stopping triggered.", "red")
+            break
+        
+        scheduler.step()
+
+        # 現在の学習率を取得して表示
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Current learning rate: {current_lr}")
+        if args.use_wandb:
+            wandb.log({"learning_rate": current_lr})
     
     # ----------------------------------
     #  Start evaluation with best model
@@ -106,12 +143,13 @@ def run(args: DictConfig):
     preds = [] 
     model.eval()
     for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
-        preds.append(model(X.to(args.device)).detach().cpu())
+        with torch.no_grad():
+            z = model(X.to(args.device), subject_idxs.to(args.device))
+            preds.append(z.detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
     np.save(os.path.join(logdir, "submission"), preds)
     cprint(f"Submission {preds.shape} saved at {logdir}", "cyan")
-
 
 if __name__ == "__main__":
     run()
