@@ -189,4 +189,4 @@ class BrainEncoder(nn.Module):
 
         self.temporal_aggregation = TemporalAggregation(temporal_dim, D3, temporal_agg, multiplier=num_clip_tokens)
 
-        self.clip_head = nn.Sequential(nn.LayerNorm([D3, num_clip_tokens]), nn.GELU(), nn.Conv1d(Dデータセットの修正に伴って、分別機（classifier）の修正が必要です。以下の修正点に基づいて、必要な変更を反映しました。
+        self.clip_head = nn.Sequential(nn.LayerNorm([D3, num_clip_tokens]), nn.GELU(), nn.Conv1d())
