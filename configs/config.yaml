@@ -8,6 +8,20 @@ seed: 1234
 use_wandb: False
 
 data_dir: data
+
+# Data Preprocessing
+resample_freq: 100  # 例: リサンプリングの周波数
+filter_freq: [1, 40]  # 例: バンドパスフィルタの周波数帯域
+baseline_correction: True  # 例: ベースライン補正の有無
+
+# Model Hyperparameters
+hid_dim: 128
+num_blocks: 6  # 例: 畳み込みブロックの数
+kernel_size: 5
+lstm_hidden_dim: 64
+lstm_layers: 3  # 例: LSTM層の数
+dropout_prob: 0.5
+weight_decay: 1e-5
+
 # Evaluation
-model_path: 
-#model_path: outputs/model_best.pt
+model_path: outputs/model_best.pt
