@@ -272,4 +272,4 @@ def train(args: DictConfig, run_dir: str):
                 )
 
         if no_best_counter > args.patience:
-            cprint(f"Early stopping at epoch {epoch}", color以下のコードは、修正したデータセットに合わせてトレーニングコードを更新したものです。
+            cprint(f"Early stopping at epoch {epoch}"
