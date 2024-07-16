@@ -1,6 +1,7 @@
 import os
 import sys
-sys.path.append('/workspace/dl_lecture_competition_pub/src')import os
+sys.path.append('/workspace/dl_lecture_competition_pub/src')
+
 import numpy as np
 import torch
 import torch.nn.functional as F
