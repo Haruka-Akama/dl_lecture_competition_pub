@@ -24,8 +24,8 @@ class SpatialAttentionLayer(nn.Module):
                            imag_part * torch.sin(2 * np.pi * (k * sensor_locs[:, 0] + l * sensor_locs[:, 1]))
             attention_maps.append(a_j)
         attention_maps = torch.stack(attention_maps, dim=1)
-        attention_weights = F.softmax(attention_maps, dim=1)
-        return torch.einsum('ij,jkl->ikl', attention_weights, X)
+        attention_weights = F.softmax(attention_maps, dim=0)
+        return torch.einsum('bj,ijk->bik', attention_weights, X)
 
 class SubjectSpecificLayer(nn.Module):
     def __init__(self, num_channels, num_subjects):
@@ -36,7 +36,7 @@ class SubjectSpecificLayer(nn.Module):
 
     def forward(self, X, subject_id):
         M_s = self.subject_matrices[subject_id]
-        return torch.einsum('bij,bjk->bik', M_s, X)
+        return torch.einsum('bij,bjk->bik', X, M_s)
 
 class ResidualDilatedConvBlock(nn.Module):
     def __init__(self, num_input_channels, num_output_channels):
@@ -107,4 +107,3 @@ model = fclip(num_input_channels, num_output_channels, num_subjects, num_classes
 # モデルの出力を取得
 Z = model(X, subject_ids, sensor_locs)
 print(f"Output shape: {Z.shape}")
-#
