@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 
 class ThingsMEGDataset(Dataset):
-    def __init__(self, split: str, data_dir: str = "orkspace/dl_lecture_competition_pub/data") -> None:
+    def __init__(self, split: str, data_dir: str = "workspace/dl_lecture_competition_pub/data") -> None:
         super().__init__()
         
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
