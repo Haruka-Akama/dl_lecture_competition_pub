@@ -3,52 +3,30 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-from tqdm import tqdm
 
 class ThingsMEGDataset(Dataset):
-    def __init__(self, split: str, data_dir: str = "data-omni", batch_size=100) -> None:
+    def __init__(self, split: str, data_dir: str = "data") -> None:
         super().__init__()
         
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
         self.split = split
         self.num_classes = 1854
-        self.batch_size = batch_size
 
-        print(f"Loading {split}_X directory...")
-        self.X_paths = [os.path.join(data_dir, f"{split}_X", fname) for fname in sorted(os.listdir(os.path.join(data_dir, f"{split}_X"))) if fname.endswith('.npy')]
-        print(f"{split}_X directory loaded successfully.")
+        print(f"Loading {split}_X.pt...")
+        self.X_paths = torch.load(os.path.join(data_dir, f"{split}_X.pt"))
+        print(f"{split}_X.pt loaded successfully.")
 
-        print(f"Loading {split}_subject_idxs directory...")
-        subject_dir = os.path.join(data_dir, f"{split}_subject_idxs")
-        self.subject_idxs = self.load_subject_idxs(subject_dir)
-        self.subject_idxs = np.concatenate(self.subject_idxs, axis=0)
-        print(f"{split}_subject_idxs loaded successfully.")
+        print(f"Loading {split}_subject_idxs.pt...")
+        self.subject_idxs = torch.load(os.path.join(data_dir, f"{split}_subject_idxs.pt"))
+        print(f"{split}_subject_idxs.pt loaded successfully.")
         
         if split in ["train", "val"]:
-            print(f"Loading {split}_y directory...")
-            label_dir = os.path.join(data_dir, f"{split}_y")
-            self.y = self.load_labels(label_dir)
-            self.y = np.concatenate(self.y, axis=0)
-            assert len(np.unique(self.y)) == self.num_classes, "Number of classes do not match."
-            print(f"{split}_y loaded successfully.")
+            print(f"Loading {split}_y.pt...")
+            self.y = torch.load(os.path.join(data_dir, f"{split}_y.pt"))
+            assert len(torch.unique(self.y)) == self.num_classes, "Number of classes do not match."
+            print(f"{split}_y.pt loaded successfully.")
         else:
             self.y = None
-
-    def load_subject_idxs(self, subject_dir):
-        fnames = sorted([fname for fname in os.listdir(subject_dir) if fname.endswith('.npy')])
-        subject_idxs = []
-        for i in tqdm(range(0, len(fnames), self.batch_size), desc="Loading subject_idxs"):
-            batch_fnames = fnames[i:i + self.batch_size]
-            subject_idxs.extend([np.load(os.path.join(subject_dir, fname)) for fname in batch_fnames])
-        return subject_idxs
-
-    def load_labels(self, label_dir):
-        fnames = sorted([fname for fname in os.listdir(label_dir) if fname.endswith('.npy')])
-        labels = []
-        for i in tqdm(range(0, len(fnames), self.batch_size), desc="Loading labels"):
-            batch_fnames = fnames[i:i + self.batch_size]
-            labels.extend([np.load(os.path.join(label_dir, fname)) for fname in batch_fnames])
-        return labels
 
     def __len__(self) -> int:
         return len(self.X_paths)
@@ -74,48 +52,31 @@ class ThingsMEGDataset(Dataset):
         return sample.shape[1]
 
 class ImageDataset(Dataset):
-    def __init__(self, split: str, images_dir: str = "Images", data_dir: str = "data-omni", transform=None, batch_size=100):
+    def __init__(self, split: str, images_dir: str = "Images", data_dir: str = "data", transform=None):
         self.images_dir = images_dir
         self.data_dir = data_dir
         self.split = split
         self.transform = transform
-        self.batch_size = batch_size
         
         print(f"Loading {split}_image_paths.txt...")
-        with open(os.path.join(images_dir, f"{split}_image_paths.txt"), 'r') as file:
+        with open(os.path.join(images_dir, f"split"), 'r') as file:
             self.image_paths = [line.strip() for line in file]
         print(f"{split}_image_paths.txt loaded successfully.")
         
         print(f"Loading {split}_subject_idxs directory...")
         subject_dir = os.path.join(data_dir, f"{split}_subject_idxs")
-        self.subject_idxs = self.load_subject_idxs(subject_dir)
+        self.subject_idxs = [np.load(os.path.join(subject_dir, fname)) for fname in sorted(os.listdir(subject_dir)) if fname.endswith('.npy')]
         self.subject_idxs = np.concatenate(self.subject_idxs, axis=0)
         print(f"{split}_subject_idxs loaded successfully.")
         
         if split in ["train", "val"]:
             print(f"Loading {split}_y directory...")
             label_dir = os.path.join(data_dir, f"{split}_y")
-            self.y = self.load_labels(label_dir)
+            self.y = [np.load(os.path.join(label_dir, fname)) for fname in sorted(os.listdir(label_dir)) if fname.endswith('.npy')]
             self.y = np.concatenate(self.y, axis=0)
             print(f"{split}_y loaded successfully.")
         else:
             self.y = None
-
-    def load_subject_idxs(self, subject_dir):
-        fnames = sorted([fname for fname in os.listdir(subject_dir) if fname.endswith('.npy')])
-        subject_idxs = []
-        for i in tqdm(range(0, len(fnames), self.batch_size), desc="Loading subject_idxs"):
-            batch_fnames = fnames[i:i + self.batch_size]
-            subject_idxs.extend([np.load(os.path.join(subject_dir, fname)) for fname in batch_fnames])
-        return subject_idxs
-
-    def load_labels(self, label_dir):
-        fnames = sorted([fname for fname in os.listdir(label_dir) if fname.endswith('.npy')])
-        labels = []
-        for i in tqdm(range(0, len(fnames), self.batch_size), desc="Loading labels"):
-            batch_fnames = fnames[i:i + self.batch_size]
-            labels.extend([np.load(os.path.join(label_dir, fname)) for fname in batch_fnames])
-        return labels
 
     def __len__(self) -> int:
         return len(self.image_paths)
@@ -149,3 +110,4 @@ class ImageDataset(Dataset):
 # ])
 # train_set = ThingsMEGDataset(split='train', data_dir='path/to/data')
 # image_set = ImageDataset(split='train', images_dir='path/to/Images', data_dir='path/to/data', transform=transform)
+#

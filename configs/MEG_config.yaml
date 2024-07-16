@@ -4,7 +4,7 @@
 seed: 1234
 device: cuda:0
 use_wandb: False
-data_dir: data-omni
+data_dir: data
 images_dir: Images
 
 # DataLoader settings
