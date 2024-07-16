@@ -1,0 +1,33 @@
+# config.yaml
+
+# General settings
+seed: 1234
+device: cuda:0
+use_wandb: False
+data_dir: data
+images_dir: Images
+
+# DataLoader settings
+batch_size: 64
+num_workers: 8
+
+# Model settings
+hid_dim: 128
+num_blocks: 4
+kernel_size: 5
+lstm_hidden_dim: 64
+lstm_layers: 2
+dropout_prob: 0.5
+num_subjects: 4
+subject_emb_dim: 32
+
+# Training settings
+epochs: 100
+lr: 0.001  # Initial learning rate
+lr_step_size: 10  # Step size for learning rate decay
+lr_gamma: 0.1  # Factor by which the learning rate is reduced
+weight_decay: 1e-5
+
+# Evaluation settings
+model_path: ./outputs/model_best.pt
+#
