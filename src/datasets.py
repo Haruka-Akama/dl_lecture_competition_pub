@@ -7,7 +7,7 @@ from glob import glob
 
 
 class ThingsMEGDataset(torch.utils.data.Dataset):
-    def __init__(self, split: str, data_dir: str = "BasicConvClassifier") -> None:
+    def __init__(self, split: str, data_dir: str = "/data1/akamaharuka/data-omni/") -> None:
         super().__init__()
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
         
@@ -19,7 +19,13 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
         # Load data
         print(f"Loading {split}_X data...")
         self.X = [np.load(os.path.join(data_dir, f"{split}_X", str(i).zfill(5) + ".npy")) for i in range(self.num_samples)]
+        self.subject_idxs = [np.load(os.path.join(data_dir, f"{split}_subject_idxs", str(i).zfill(5) + ".npy")) for i in range(self.num_samples)]
+        if self.split in ["train", "val"]:
+            self.y = [np.load(os.path.join(data_dir, f"{self.split}_y", str(i).zfill(5) + ".npy")) for i in range(self.num_samples)]
         print(f"{split}_X data loaded successfully.")
+
+    def __len__(self):
+        return self.num_samples
 
     def __getitem__(self, i):
         X_path = os.path.join(self.data_dir, f"{self.split}_X", str(i).zfill(5) + ".npy")
@@ -34,11 +40,11 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
             
             return X, y, subject_idx
         else:
-            return self.X[i], self.subject_idxs[i]
+            return X, subject_idx
 
     @property
     def num_channels(self) -> int:
-        return self.X.shape[1]
+        return self.X[0].shape[1]
 
     @property
     def seq_len(self) -> int:

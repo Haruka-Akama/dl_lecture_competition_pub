@@ -4,37 +4,31 @@ import torch.nn.functional as F
 from einops.layers.torch import Rearrange
 
 
+# src/models.py
+
+import torch.nn as nn
+
 class BasicConvClassifier(nn.Module):
-    def __init__(
-        self,
-        num_classes: int,
-        seq_len: int,
-        in_channels: int,
-        hid_dim: int = 128
-    ) -> None:
-        super().__init__()
+    def __init__(self, num_classes, seq_len, num_channels, dropout_prob=0.5):
+        super(BasicConvClassifier, self).__init__()
+        self.conv1 = nn.Conv1d(num_channels, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv1d(64, 128, kernel_size=3, padding=1)
+        self.dropout = nn.Dropout(p=dropout_prob)
+        self.fc1 = nn.Linear(128 * seq_len, 512)
+        self.fc2 = nn.Linear(512, num_classes)
 
-        self.blocks = nn.Sequential(
-            ConvBlock(in_channels, hid_dim),
-            ConvBlock(hid_dim, hid_dim),
-        )
+    def forward(self, x, subject_idxs):
+        x = self.conv1(x)
+        x = nn.ReLU()(x)
+        x = self.conv2(x)
+        x = nn.ReLU()(x)
+        x = self.dropout(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc1(x)
+        x = nn.ReLU()(x)
+        x = self.fc2(x)
+        return x
 
-        self.head = nn.Sequential(
-            nn.AdaptiveAvgPool1d(1),
-            Rearrange("b d 1 -> b d"),
-            nn.Linear(hid_dim, num_classes),
-        )
-
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
-        """_summary_
-        Args:
-            X ( b, c, t ): _description_
-        Returns:
-            X ( b, num_classes ): _description_
-        """
-        X = self.blocks(X)
-
-        return self.head(X)
 
 
 class ConvBlock(nn.Module):

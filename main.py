@@ -1,4 +1,3 @@
-
 import os
 import numpy as np
 import torch
@@ -11,7 +10,6 @@ from termcolor import cprint
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-#from src.datasets_preprocess import ThingsMEGDataset
 from src.datasets import ThingsMEGDataset
 from src.models import BasicConvClassifier
 from src.utils import set_seed
@@ -48,18 +46,19 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
-    model = LSTMConvClassifier(
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    model = BasicConvClassifier(
         train_set.num_classes, train_set.seq_len, train_set.num_channels, dropout_prob=0.7
     )
-
+    
+    model.to(device)
     if torch.cuda.device_count() > 1:
-        print(f"Using {torch.cuda.device_count()} GPUs")
-        model = torch.nn.DataParallel(model, device_ids=args.device_ids)  # 使用するGPUを指定
+        print(f"Using GPUs: 0 and 1")
+        model = torch.nn.DataParallel(model, device_ids=[0, 1])  # GPU0とGPU1を使用
     else:
         print("Using a single GPU")
-        model = torch.nn.DataParallel(model, device_ids=args.device_ids)
-    model = model.to(device)
+    
     # ------------------
     #     Optimizer
     # ------------------
@@ -89,14 +88,14 @@ def run(args: DictConfig):
             y_pred = model(X, subject_idxs)
             
             # CLIP loss calculation
-            loss = clip_loss_fn(z, y)
+            loss = clip_loss_fn(y_pred, y)
             train_loss.append(loss.item())
             
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
-            acc = accuracy(z, y)
+            acc = accuracy(y_pred, y)
             train_acc.append(acc.item())
 
         model.eval()
@@ -109,7 +108,7 @@ def run(args: DictConfig):
             val_loss.append(F.cross_entropy(y_pred, y).item())
             val_acc.append(accuracy(y_pred, y).item())
 
-        print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc):.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
+        print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc)::.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
         torch.save(model.state_dict(), os.path.join(logdir, "model_last.pt"))
         if args.use_wandb:
             wandb.log({"train_loss": np.mean(train_loss), "train_acc": np.mean(train_acc), "val_loss": np.mean(val_loss), "val_acc": np.mean(val_acc)})
@@ -132,7 +131,7 @@ def run(args: DictConfig):
     # ----------------------------------
     #  Start evaluation with best model
     # ----------------------------------
-    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=args.device))
+    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=device))
 
     preds = [] 
     model.eval()
