@@ -10,6 +10,7 @@ import wandb
 from termcolor import cprint
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
+from torchvision import transforms
 
 from src.MEG_datasets import ThingsMEGDataset, ImageDataset
 from src.MEG_models import fclip
