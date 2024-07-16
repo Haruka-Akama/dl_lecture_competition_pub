@@ -48,14 +48,4 @@ class ThingsMEGDataset(Dataset):
         return self.X.shape[2]
 
 # Usage example
-model = TransformerClassifier(
-    num_classes=10,
-    seq_len=100,
-    in_channels=64,
-    hid_dim=128,
-    num_layers=4,
-    num_heads=8,
-    ff_dim=512,
-    dropout_prob=0.5
-)
-
+m
