@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset
 
 class ThingsMEGDataset(Dataset):
-    def __init__(self, split: str, data_dir: str = "data") -> None:
+    def __init__(self, split: str, data_dir: str = "/data1/akamaharuka/data/") -> None:
         super().__init__()
         
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
