@@ -3,74 +3,67 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops.layers.torch import Rearrange
 
-
-class BasicConvClassifier(nn.Module):
+class TransformerClassifier(nn.Module):
     def __init__(
         self,
         num_classes: int,
         seq_len: int,
         in_channels: int,
-        hid_dim: int = 128
+        hid_dim: int = 128,
+        num_layers: int = 4,
+        num_heads: int = 8,
+        ff_dim: int = 512,
+        num_subjects: int = 4,
+        subject_emb_dim: int = 32,
+        dropout_prob: float = 0.5
     ) -> None:
         super().__init__()
 
-        self.blocks = nn.Sequential(
-            ConvBlock(in_channels, hid_dim),
-            ConvBlock(hid_dim, hid_dim),
+        self.subject_embedding = nn.Embedding(num_subjects, subject_emb_dim)
+        self.input_projection = nn.Linear(in_channels + subject_emb_dim, hid_dim)
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hid_dim, nhead=num_heads, dim_feedforward=ff_dim, dropout=dropout_prob
         )
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        self.dropout1 = nn.Dropout(dropout_prob)
+        self.dropout2 = nn.Dropout(dropout_prob)
 
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
             Rearrange("b d 1 -> b d"),
             nn.Linear(hid_dim, num_classes),
+            nn.Dropout(dropout_prob)  # Head にもドロップアウトを追加
         )
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
-        """_summary_
-        Args:
-            X ( b, c, t ): _description_
-        Returns:
-            X ( b, num_classes ): _description_
-        """
-        X = self.blocks(X)
-
-        return self.head(X)
-
-
-class ConvBlock(nn.Module):
-    def __init__(
-        self,
-        in_dim,
-        out_dim,
-        kernel_size: int = 3,
-        p_drop: float = 0.1,
-    ) -> None:
-        super().__init__()
+    def forward(self, X: torch.Tensor, subject_idxs: torch.Tensor) -> torch.Tensor:
+        batch_size, channels, seq_len = X.size()
         
-        self.in_dim = in_dim
-        self.out_dim = out_dim
+        # 期待される入力の形状を確認
+        if channels != self.input_projection.in_features - self.subject_embedding.embedding_dim:
+            raise ValueError(f"Expected input with {self.input_projection.in_features - self.subject_embedding.embedding_dim} channels, but got {channels}")
 
-        self.conv0 = nn.Conv1d(in_dim, out_dim, kernel_size, padding="same")
-        self.conv1 = nn.Conv1d(out_dim, out_dim, kernel_size, padding="same")
-        # self.conv2 = nn.Conv1d(out_dim, out_dim, kernel_size) # , padding="same")
+        subject_emb = self.subject_embedding(subject_idxs)
+        subject_emb = subject_emb.unsqueeze(1).expand(-1, seq_len, -1)
+        X = torch.cat([X.permute(0, 2, 1), subject_emb], dim=-1)
         
-        self.batchnorm0 = nn.BatchNorm1d(num_features=out_dim)
-        self.batchnorm1 = nn.BatchNorm1d(num_features=out_dim)
+        X = self.input_projection(X)
+        X = self.dropout1(X.permute(1, 0, 2))  # 変換して入力にドロップアウトを追加
+        X = self.transformer_encoder(X)
+        X = self.dropout2(X.permute(1, 0, 2))  # Transformerの後にドロップアウトを追加
 
-        self.dropout = nn.Dropout(p_drop)
+        return self.head(X.permute(0, 2, 1))
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
-        if self.in_dim == self.out_dim:
-            X = self.conv0(X) + X  # skip connection
-        else:
-            X = self.conv0(X)
+# Usage example
+model = TransformerClassifier(
+    num_classes=10,
+    seq_len=100,
+    in_channels=64,
+    hid_dim=128,
+    num_layers=4,
+    num_heads=8,
+    ff_dim=512,
+    dropout_prob=0.5
+)
 
-        X = F.gelu(self.batchnorm0(X))
-
-        X = self.conv1(X) + X  # skip connection
-        X = F.gelu(self.batchnorm1(X))
-
-        # X = self.conv2(X)
-        # X = F.glu(X, dim=-2)
-
-        return self.dropout(X)
