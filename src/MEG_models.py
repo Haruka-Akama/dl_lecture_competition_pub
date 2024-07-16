@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from omegaconf import DictConfig
 
 class SpatialAttentionLayer(nn.Module):
     def __init__(self, num_input_channels, num_output_channels, harmonics=32):
@@ -24,8 +25,8 @@ class SpatialAttentionLayer(nn.Module):
                            imag_part * torch.sin(2 * np.pi * (k * sensor_locs[:, 0] + l * sensor_locs[:, 1]))
             attention_maps.append(a_j)
         attention_maps = torch.stack(attention_maps, dim=1)
-        attention_weights = F.softmax(attention_maps, dim=0)
-        return torch.einsum('bj,ijk->bik', attention_weights, X)
+        attention_weights = F.softmax(attention_maps, dim=-1)
+        return torch.einsum('bi,bjk->bjk', attention_weights, X)
 
 class SubjectSpecificLayer(nn.Module):
     def __init__(self, num_channels, num_subjects):
@@ -88,9 +89,27 @@ num_sensors = 306  # 仮のセンサー数
 sensor_locs = np.random.rand(num_sensors, 2)  # 2D位置
 
 # データをテンソルに変換
-batch_size = 256  # 仮のバッチサイズ
-data = np.random.rand(batch_size, num_sensors, 22448)  # 仮のデータ（バッチサイズ256、センサー数306、サンプル数1000）
-X = torch.tensor(data, dtype=torch.float32)
+@hydra.main(version_base=None, config_path="configs", config_name="MEG_config")
+def main(cfg: DictConfig):
+    # data_dirを取得
+    data_dir = cfg.data_dir
+    
+    # 実際のデータをロード
+    data_path = [os.path.join(data_dir, 'train_X', fname) for fname in sorted(os.listdir(os.path.join(data_dir, 'train_X'))) if fname.endswith('.npy')]
+    # データをロードし、テンソルに変換
+    data = torch.load(data_path)
+
+    # データの形状を確認し、必要ならば形状を調整
+    if data.dim() == 3 and data.shape[1] > data.shape[2]:
+        # 形状が [バッチサイズ, センサー数, 時間サンプル] の場合、調整不要
+        pass
+    elif data.dim() == 3 and data.shape[1] < data.shape[2]:
+        # 形状が [バッチサイズ, 時間サンプル, センサー数] の場合、 [バッチサイズ, センサー数, 時間サンプル] に変換
+        data = data.permute(0, 2, 1)
+
+    # データをテンソルに変換
+    X = torch.tensor(data, dtype=torch.float32)
+
 sensor_locs = torch.tensor(sensor_locs, dtype=torch.float32)
 
 # 被験者IDの設定
