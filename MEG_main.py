@@ -43,13 +43,13 @@ def run(args: DictConfig):
 
     # 画像データセット
     transform = transforms.Compose([transforms.ToTensor()])
-    image_train_set = ImageDataset(split='train', images_dir='workspace/dl_lecture_competition_pub/data/Images', data_dir=args.data_dir, transform=transform)
+    image_train_set = ImageDataset(split='train', images_dir='Images', data_dir=args.data_dir, transform=transform)
     image_train_loader = DataLoader(image_train_set, shuffle=True, **loader_args)
 
-    image_val_set = ImageDataset(split='val', images_dir='workspace/dl_lecture_competition_pub/data/Images', data_dir=args.data_dir, transform=transform)
+    image_val_set = ImageDataset(split='val', images_dir='Images', data_dir=args.data_dir, transform=transform)
     image_val_loader = DataLoader(image_val_set, shuffle=False, **loader_args)
 
-    image_test_set = ImageDataset(split='test', images_dir='workspace/dl_lecture_competition_pub/data/Imagesy', data_dir=args.data_dir, transform=transform)
+    image_test_set = ImageDataset(split='test', images_dir='Images', data_dir=args.data_dir, transform=transform)
     image_test_loader = DataLoader(image_test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers)
 
     # ------------------

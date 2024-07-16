@@ -27,7 +27,7 @@ def run(args: DictConfig):
 
     # 画像データセット
     transform = transforms.Compose([transforms.ToTensor()])
-    image_test_set = ImageDataset(split='test', images_dir='workspace/dl_lecture_competition_pub/data/Images'
+    image_test_set = ImageDataset(split='test', images_dir='Images'
     image_test_set = ImageDataset(split='test', images_dir=args.images_dir, data_dir=args.data_dir, transform=transform)
     image_test_loader = DataLoader(image_test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers)
 
