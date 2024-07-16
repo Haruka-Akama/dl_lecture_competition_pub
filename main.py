@@ -11,7 +11,7 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from src.datasets import ThingsMEGDataset
-from src.models import LSTMConvClassifier
+from src.models import TransformerClassifier  # 変更
 from src.utils import set_seed
 
 
@@ -46,16 +46,16 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = LSTMConvClassifier(
+    model = TransformerClassifier(
         num_classes=train_set.num_classes,
         seq_len=train_set.seq_len,
         in_channels=train_set.num_channels,
         hid_dim=args.hid_dim,
-        num_blocks=args.num_blocks,
-        kernel_size=args.kernel_size,
-        lstm_hidden_dim=args.lstm_hidden_dim,
-        lstm_layers=args.lstm_layers,
-        dropout_prob=args.dropout_prob
+        num_layers=args.num_layers,
+        num_heads=args.num_heads,
+        ff_dim=args.ff_dim,
+        dropout_prob=args.dropout_prob,
+        num_subjects=args.num_subjects
     ).to(args.device)
 
     # ------------------

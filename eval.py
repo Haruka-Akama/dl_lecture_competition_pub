@@ -1,4 +1,4 @@
-import os, sys
+import os
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -10,7 +10,7 @@ from termcolor import cprint
 from tqdm import tqdm
 
 from src.datasets import ThingsMEGDataset
-from src.models import LSTMConvClassifier
+from src.models import TransformerClassifier
 from src.utils import set_seed
 
 
@@ -31,16 +31,15 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = LSTMConvClassifier(
+    model = TransformerClassifier(
         num_classes=test_set.num_classes,
         seq_len=test_set.seq_len,
-        in_channels=test_set.num_channels,
-        hid_dim=args.hid_dim,
-        num_blocks=args.num_blocks,
-        kernel_size=args.kernel_size,
-        lstm_hidden_dim=args.lstm_hidden_dim,
-        lstm_layers=args.lstm_layers,
-        dropout_prob=args.dropout_prob
+        num_channels=test_set.num_channels,
+        num_layers=args.num_layers,
+        num_heads=args.num_heads,
+        ff_dim=args.ff_dim,
+        dropout_prob=args.dropout_prob,
+        num_subjects=args.num_subjects
     ).to(args.device)
     model.load_state_dict(torch.load(args.model_path, map_location=args.device))
 
@@ -53,7 +52,7 @@ def run(args: DictConfig):
         preds.append(model(X.to(args.device), subject_idxs.to(args.device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
-    np.save(os.path.join(savedir, "submission"), preds)
+    np.save(os.path.join(savedir, "submission.npy"), preds)
     cprint(f"Submission {preds.shape} saved at {savedir}", "cyan")
 
 
