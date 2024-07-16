@@ -2,7 +2,7 @@
 
 # General settings
 seed: 1234
-device: cuda:0
+device: cuda:0,1
 use_wandb: False
 data_dir: /data1/akamaharuka/data/
 images_dir: /data1/akamaharuka/Images
