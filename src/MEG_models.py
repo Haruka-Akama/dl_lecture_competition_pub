@@ -3,6 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from omegaconf import DictConfig
+import hydra  # 追加
+from src.MEG_datasets import ThingsMEGDataset, ImageDataset  # 修正
+from src.MEG_models import fclip
+from src.MEG_utils import set_seed 
 
 class SpatialAttentionLayer(nn.Module):
     def __init__(self, num_input_channels, num_output_channels, harmonics=32):
