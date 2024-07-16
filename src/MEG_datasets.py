@@ -6,7 +6,7 @@ from PIL import Image
 from tqdm import tqdm
 
 class ThingsMEGDataset(Dataset):
-    def __init__(self, split: str, data_dir: str = "data") -> None:
+    def __init__(self, split: str, data_dir: str = "/data1/akamaharuka/data") -> None:
         super().__init__()
         
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
@@ -53,7 +53,7 @@ class ThingsMEGDataset(Dataset):
         return sample.shape[1]
 
 class ImageDataset(Dataset):
-    def __init__(self, split: str, images_dir: str = "Images", data_dir: str = "data", transform=None):
+    def __init__(self, split: str, images_dir: str = "/data1/akamaharuka/Images", data_dir: str = "/data1/akamaharuka/data/", transform=None):
         self.images_dir = images_dir
         self.data_dir = data_dir
         self.split = split
