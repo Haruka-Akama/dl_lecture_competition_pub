@@ -48,4 +48,4 @@ class ThingsMEGDataset(Dataset):
         return self.X.shape[2]
 
 # Usage example
-m
+
