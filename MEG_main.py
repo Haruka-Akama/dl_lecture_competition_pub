@@ -11,9 +11,9 @@ from termcolor import cprint
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
-from MEG_datasets import ThingsMEGDataset, ImageDataset
-from MEG_models import fclip
-from MEG_utils import set_seed
+from src.MEG_datasets import ThingsMEGDataset, ImageDataset
+from src.MEG_models import fclip
+from src.MEG_utils import set_seed
 
 @hydra.main(version_base=None, config_path="configs", config_name="MEG_config")
 def run(args: DictConfig):
