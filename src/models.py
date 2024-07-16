@@ -38,10 +38,16 @@ class TransformerClassifier(nn.Module):
         )
 
     def forward(self, X: torch.Tensor, subject_idxs: torch.Tensor) -> torch.Tensor:
-        subject_emb = self.subject_embedding(subject_idxs)
-        subject_emb = subject_emb.unsqueeze(1).expand(-1, X.shape[1], -1)
-        X = torch.cat([X, subject_emb], dim=-1)
+        batch_size, channels, seq_len = X.size()
         
+        # 被験者の埋め込みベクトルを取得
+        subject_emb = self.subject_embedding(subject_idxs)
+        subject_emb = subject_emb.unsqueeze(1).expand(-1, seq_len, -1)
+        
+        # 元のデータと被験者の埋め込みを結合
+        X = torch.cat([X.permute(0, 2, 1), subject_emb], dim=-1)
+        
+        # 次元を hid_dim に変換
         X = self.input_projection(X)
         X = self.dropout1(X.permute(1, 0, 2))  # 変換して入力にドロップアウトを追加
         X = self.transformer_encoder(X)
@@ -60,4 +66,3 @@ model = TransformerClassifier(
     ff_dim=512,
     dropout_prob=0.5
 )
-#
