@@ -59,10 +59,10 @@ class ImageDataset(Dataset):
         self.split = split
         self.transform = transform
         
-        print(f"Loading {split}_image_paths.txt...")
-        with open(os.path.join(images_dir, f"{split}_image_paths.txt"), 'r') as file:
+        print(f"Loading {split}.jpg...")
+        with open(os.path.join(images_dir, f"split"), 'r') as file:
             self.image_paths = [line.strip() for line in file]
-        print(f"{split}_image_paths.txt loaded successfully.")
+        print(f"{split}.jpg loaded successfully.")
         
         print(f"Loading {split}_subject_idxs directory...")
         subject_dir = os.path.join(data_dir, f"{split}_subject_idxs")
