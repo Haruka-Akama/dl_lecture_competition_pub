@@ -1,4 +1,3 @@
-
 import os
 import numpy as np
 import torch
@@ -9,18 +8,11 @@ from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
 from tqdm import tqdm
-<<<<<<< HEAD
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 #from src.datasets_preprocess import ThingsMEGDataset
 from src.datasets import ThingsMEGDataset
-from src.LSTM_models import LSTMConvClassifier
-=======
-from torch.optim.lr_scheduler import StepLR
-
-from src.datasets import ThingsMEGDataset
-from src.models import LSTMConvClassifier, CLIPLoss
->>>>>>> afdd8a7fe05b51b35a58a49866978ee7c9cde0c2
+from src.LSTM_models import ConvLSTMClassifier
 from src.utils import set_seed
 
 
@@ -54,47 +46,27 @@ def run(args: DictConfig):
 
     # ------------------
     #       Model
-    # ------------------
-<<<<<<< HEAD
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
-    model = LSTMConvClassifier(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels, dropout_prob=0.7
-    )
-
-    if torch.cuda.device_count() > 1:
-        print(f"Using {torch.cuda.device_count()} GPUs")
-        model = torch.nn.DataParallel(model, device_ids=args.device_ids)  # 使用するGPUを指定
-    else:
-        print("Using a single GPU")
-        model = torch.nn.DataParallel(model, device_ids=args.device_ids)
-    model = model.to(device)
+    model = ConvLSTMClassifier(
+        num_classes=10,
+        seq_len=100,
+        in_channels=3,
+        hid_dim=128,
+        num_blocks=4,
+        kernel_size=5,
+        num_subjects=4,
+        subject_emb_dim=32,
+        lstm_hidden_dim=64,
+        lstm_layers=2,
+        dropout_prob=0.5,
+        weight_decay=1e-5
+    ).to(args.device)
+    
+    
     # ------------------
     #     Optimizer
     # ------------------
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
     scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
-=======
-    model = LSTMConvClassifier(
-        num_classes=train_set.num_classes,
-        seq_len=train_set.seq_len,
-        in_channels=train_set.num_channels,
-        hid_dim=args.hid_dim,
-        num_blocks=args.num_blocks,
-        kernel_size=args.kernel_size,
-        lstm_hidden_dim=args.lstm_hidden_dim,
-        lstm_layers=args.lstm_layers,
-        dropout_prob=args.dropout_prob
-    ).to(args.device)
-
-    # ------------------
-    #     Optimizer
-    # ------------------
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = StepLR(optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma)
-
-    # CLIP Loss
-    clip_loss_fn = CLIPLoss(temperature=0.1)
->>>>>>> afdd8a7fe05b51b35a58a49866978ee7c9cde0c2
 
     # ------------------
     #   Start training
@@ -102,15 +74,9 @@ def run(args: DictConfig):
     max_val_acc = 0
     accuracy = Accuracy(
         task="multiclass", num_classes=train_set.num_classes, top_k=10
-<<<<<<< HEAD
-    ).to(device)
-    
-    early_stopping_patience = 5
-=======
     ).to(args.device)
     
-    early_stopping_patience = 30
->>>>>>> afdd8a7fe05b51b35a58a49866978ee7c9cde0c2
+    early_stopping_patience = 5
     early_stopping_counter = 0
       
     for epoch in range(args.epochs):
@@ -120,46 +86,29 @@ def run(args: DictConfig):
         
         model.train()
         for X, y, subject_idxs in tqdm(train_loader, desc="Train"):
-<<<<<<< HEAD
-            X, y, subject_idxs = X.to(device), y.to(device), subject_idxs.to(device)
-
-            y_pred = model(X, subject_idxs)
-=======
             X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
 
-            z = model(X, subject_idxs)
->>>>>>> afdd8a7fe05b51b35a58a49866978ee7c9cde0c2
+            y_pred = model(X, subject_idxs)
             
-            # CLIP loss calculation
-            loss = clip_loss_fn(z, y)
+            loss = F.cross_entropy(y_pred, y)
             train_loss.append(loss.item())
             
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
-            acc = accuracy(z, y)
+            acc = accuracy(y_pred, y)
             train_acc.append(acc.item())
 
         model.eval()
         for X, y, subject_idxs in tqdm(val_loader, desc="Validation"):
-<<<<<<< HEAD
-            X, y, subject_idxs = X.to(device), y.to(device), subject_idxs.to(device)
+            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
             
             with torch.no_grad():
                 y_pred = model(X, subject_idxs)
             
             val_loss.append(F.cross_entropy(y_pred, y).item())
             val_acc.append(accuracy(y_pred, y).item())
-=======
-            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
-            
-            with torch.no_grad():
-                z = model(X, subject_idxs)
-            
-            val_loss.append(clip_loss_fn(z, y).item())
-            val_acc.append(accuracy(z, y).item())
->>>>>>> afdd8a7fe05b51b35a58a49866978ee7c9cde0c2
 
         print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc):.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
         torch.save(model.state_dict(), os.path.join(logdir, "model_last.pt"))
@@ -174,27 +123,12 @@ def run(args: DictConfig):
             early_stopping_counter = 0
         else:
             early_stopping_counter += 1
-<<<<<<< HEAD
         
         if early_stopping_counter >= early_stopping_patience:
             cprint("Early stopping triggered.", "red")
             break
         
         scheduler.step()
-=======
-        
-        if early_stopping_counter >= early_stopping_patience:
-            cprint("Early stopping triggered.", "red")
-            break
-        
-        scheduler.step()
-
-        # 現在の学習率を取得して表示
-        current_lr = optimizer.param_groups[0]['lr']
-        print(f"Current learning rate: {current_lr}")
-        if args.use_wandb:
-            wandb.log({"learning_rate": current_lr})
->>>>>>> afdd8a7fe05b51b35a58a49866978ee7c9cde0c2
     
     # ----------------------------------
     #  Start evaluation with best model
@@ -204,13 +138,7 @@ def run(args: DictConfig):
     preds = [] 
     model.eval()
     for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
-<<<<<<< HEAD
-        preds.append(model(X.to(device), subject_idxs.to(device)).detach().cpu())
-=======
-        with torch.no_grad():
-            z = model(X.to(args.device), subject_idxs.to(args.device))
-            preds.append(z.detach().cpu())
->>>>>>> afdd8a7fe05b51b35a58a49866978ee7c9cde0c2
+        preds.append(model(X.to(args.device), subject_idxs.to(args.device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
     np.save(os.path.join(logdir, "submission"), preds)
