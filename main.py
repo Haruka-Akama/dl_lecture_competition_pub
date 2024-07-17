@@ -9,7 +9,6 @@ import wandb
 from termcolor import cprint
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torchvision import transforms
 
 from src.datasets import ThingsMEGDataset
 from src.models import LSTMConvClassifier
@@ -23,22 +22,6 @@ def run(args: DictConfig):
     
     if args.use_wandb:
         wandb.init(mode="online", dir=logdir, project="MEG-classification")
-    
-    # Data augmentation and transformation
-    train_transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
-        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
-        transforms.ToTensor()
-    ])
-    
-    val_transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor()
-    ])
 
     # ------------------
     #    Dataloader
@@ -46,15 +29,15 @@ def run(args: DictConfig):
     loader_args = {"batch_size": args.batch_size, "num_workers": args.num_workers}
     print("Debug start")
         
-    train_set = ThingsMEGDataset("train", args.data_dir, transform=train_transform)
+    train_set = ThingsMEGDataset("train", args.data_dir)
     train_loader = torch.utils.data.DataLoader(train_set, shuffle=True, **loader_args)
     print("Train load complete")
     
-    val_set = ThingsMEGDataset("val", args.data_dir, transform=val_transform)
+    val_set = ThingsMEGDataset("val", args.data_dir)
     val_loader = torch.utils.data.DataLoader(val_set, shuffle=False, **loader_args)
     print("val load complete")
 
-    test_set = ThingsMEGDataset("test", args.data_dir, transform=val_transform)
+    test_set = ThingsMEGDataset("test", args.data_dir)
     test_loader = torch.utils.data.DataLoader(
         test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers
     )
