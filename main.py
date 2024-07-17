@@ -15,7 +15,6 @@ from src.datasets import ThingsMEGDataset
 from src.models import LSTMConvClassifier
 from src.utils import set_seed
 
-
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):
     set_seed(args.seed)
@@ -24,22 +23,28 @@ def run(args: DictConfig):
     if args.use_wandb:
         wandb.init(mode="online", dir=logdir, project="MEG-classification")
     
+    # Data augmentation and transformation
+    train_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(10),
+        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        transforms.ToTensor()
+    ])
+    
+    val_transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor()
+    ])
+
     # ------------------
     #    Dataloader
     # ------------------
     loader_args = {"batch_size": args.batch_size, "num_workers": args.num_workers}
     print("Debug start")
-    
-    # データ増強の設定
-    train_transform = transforms.Compose([
-        transforms.RandomRotation(degrees=15),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor()
-    ])
-
+        
     train_set = ThingsMEGDataset("train", args.data_dir, transform=train_transform)
     train_loader = torch.utils.data.DataLoader(train_set, shuffle=True, **loader_args)
-
     print("Train load complete")
     
     val_set = ThingsMEGDataset("val", args.data_dir, transform=val_transform)
