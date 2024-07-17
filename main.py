@@ -10,8 +10,9 @@ from termcolor import cprint
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
+#from src.datasets_preprocess import ThingsMEGDataset
 from src.datasets import ThingsMEGDataset
-from src.models import BasicConvClassifier
+from src.models import LSTMConvClassifier
 from src.utils import set_seed
 
 
@@ -46,19 +47,10 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    model = BasicConvClassifier(
+    model = LSTMConvClassifier(
         train_set.num_classes, train_set.seq_len, train_set.num_channels, dropout_prob=0.7
-    )
-    
-    model.to(device)
-    if torch.cuda.device_count() > 1:
-        print(f"Using GPUs: 0 and 1")
-        model = torch.nn.DataParallel(model, device_ids=[0, 1])  # GPU0とGPU1を使用
-    else:
-        print("Using a single GPU")
-    
+    ).to(args.device)
+
     # ------------------
     #     Optimizer
     # ------------------
@@ -71,9 +63,9 @@ def run(args: DictConfig):
     max_val_acc = 0
     accuracy = Accuracy(
         task="multiclass", num_classes=train_set.num_classes, top_k=10
-    ).to(device)
+    ).to(args.device)
     
-    early_stopping_patience = 5
+    early_stopping_patience = 10
     early_stopping_counter = 0
       
     for epoch in range(args.epochs):
@@ -83,12 +75,11 @@ def run(args: DictConfig):
         
         model.train()
         for X, y, subject_idxs in tqdm(train_loader, desc="Train"):
-            X, y, subject_idxs = X.to(device), y.to(device), subject_idxs.to(device)
+            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
 
             y_pred = model(X, subject_idxs)
             
-            # CLIP loss calculation
-            loss = clip_loss_fn(y_pred, y)
+            loss = F.cross_entropy(y_pred, y)
             train_loss.append(loss.item())
             
             optimizer.zero_grad()
@@ -100,7 +91,7 @@ def run(args: DictConfig):
 
         model.eval()
         for X, y, subject_idxs in tqdm(val_loader, desc="Validation"):
-            X, y, subject_idxs = X.to(device), y.to(device), subject_idxs.to(device)
+            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
             
             with torch.no_grad():
                 y_pred = model(X, subject_idxs)
@@ -108,7 +99,7 @@ def run(args: DictConfig):
             val_loss.append(F.cross_entropy(y_pred, y).item())
             val_acc.append(accuracy(y_pred, y).item())
 
-        print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc)::.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
+        print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc):.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
         torch.save(model.state_dict(), os.path.join(logdir, "model_last.pt"))
         if args.use_wandb:
             wandb.log({"train_loss": np.mean(train_loss), "train_acc": np.mean(train_acc), "val_loss": np.mean(val_loss), "val_acc": np.mean(val_acc)})
@@ -131,12 +122,12 @@ def run(args: DictConfig):
     # ----------------------------------
     #  Start evaluation with best model
     # ----------------------------------
-    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=device))
+    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=args.device))
 
     preds = [] 
     model.eval()
     for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
-        preds.append(model(X.to(device), subject_idxs.to(device)).detach().cpu())
+        preds.append(model(X.to(args.device), subject_idxs.to(args.device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
     np.save(os.path.join(logdir, "submission"), preds)
