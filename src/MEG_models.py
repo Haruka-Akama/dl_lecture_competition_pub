@@ -1,7 +1,13 @@
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from omegaconf import DictConfig
+import hydra  # 追加
+from src.MEG_datasets import ThingsMEGDataset, ImageDataset  # 修正
+from src.MEG_utils import set_seed 
+from torchvision import transforms
 
 class SpatialAttentionLayer(nn.Module):
     def __init__(self, num_input_channels, num_output_channels, harmonics=32):
@@ -24,8 +30,8 @@ class SpatialAttentionLayer(nn.Module):
                            imag_part * torch.sin(2 * np.pi * (k * sensor_locs[:, 0] + l * sensor_locs[:, 1]))
             attention_maps.append(a_j)
         attention_maps = torch.stack(attention_maps, dim=1)
-        attention_weights = F.softmax(attention_maps, dim=1)
-        return torch.einsum('ij,jkl->ikl', attention_weights, X)
+        attention_weights = F.softmax(attention_maps, dim=-1)
+        return torch.einsum('bi,bjk->bjk', attention_weights, X)
 
 class SubjectSpecificLayer(nn.Module):
     def __init__(self, num_channels, num_subjects):
@@ -36,7 +42,7 @@ class SubjectSpecificLayer(nn.Module):
 
     def forward(self, X, subject_id):
         M_s = self.subject_matrices[subject_id]
-        return torch.einsum('bij,bjk->bik', M_s, X)
+        return torch.einsum('bij,bjk->bik', X, M_s)
 
 class ResidualDilatedConvBlock(nn.Module):
     def __init__(self, num_input_channels, num_output_channels):
@@ -83,27 +89,48 @@ class fclip(nn.Module):
         X = self.classifier(X)
         return X
 
-# 仮のセンサー位置と被験者IDを生成
-num_sensors = 306  # 仮のセンサー数
-sensor_locs = np.random.rand(num_sensors, 2)  # 2D位置
+@hydra.main(version_base=None, config_path="configs", config_name="MEG_config")
+def main(cfg: DictConfig):
+    # data_dirを取得
+    data_dir = cfg.data_dir
+    batch_size = cfg.batch_size
+    
+    # 実際のデータをロード
+    data_paths = [os.path.join(data_dir, 'train_X', fname) for fname in sorted(os.listdir(os.path.join(data_dir, 'train_X'))) if fname.endswith('.npy')]
+    # データをロードし、テンソルに変換
+    data = [np.load(path) for path in data_paths]
+    data = np.stack(data)
 
-# データをテンソルに変換
-batch_size = 256  # 仮のバッチサイズ
-data = np.random.rand(batch_size, num_sensors, 22448)  # 仮のデータ（バッチサイズ256、センサー数306、サンプル数1000）
-X = torch.tensor(data, dtype=torch.float32)
-sensor_locs = torch.tensor(sensor_locs, dtype=torch.float32)
+    # データの形状を確認し、必要ならば形状を調整
+    if data.ndim == 3 and data.shape[1] > data.shape[2]:
+        # 形状が [バッチサイズ, センサー数, 時間サンプル] の場合、調整不要
+        pass
+    elif data.ndim == 3 and data.shape[1] < data.shape[2]:
+        # 形状が [バッチサイズ, 時間サンプル, センサー数] の場合、 [バッチサイズ, センサー数, 時間サンプル] に変換
+        data = data.transpose(0, 2, 1)
 
-# 被験者IDの設定
-subject_ids = np.random.randint(0, 4, size=batch_size)  # 0から3までの被験者IDをランダムに生成
-subject_ids = torch.tensor(subject_ids, dtype=torch.long)
+    # データをテンソルに変換
+    X = torch.tensor(data, dtype=torch.float32)
 
-# fclipモデルを初期化
-num_input_channels = X.shape[1]
-num_output_channels = 128  # 任意の出力チャネル数
-num_subjects = 4  # 仮の被験者数
-num_classes = 1854  # クラス数（画像カテゴリ数）
-model = fclip(num_input_channels, num_output_channels, num_subjects, num_classes)
+    # 仮のセンサー位置と被験者IDを生成
+    num_sensors = 306  # 仮のセンサー数
+    sensor_locs = np.random.rand(num_sensors, 2)  # 2D位置
+    sensor_locs = torch.tensor(sensor_locs, dtype=torch.float32)
 
-# モデルの出力を取得
-Z = model(X, subject_ids, sensor_locs)
-print(f"Output shape: {Z.shape}")
+    # 被験者IDの設定
+    subject_ids = np.random.randint(0, 4, size=batch_size)  # 0から3までの被験者IDをランダムに生成
+    subject_ids = torch.tensor(subject_ids, dtype=torch.long)
+
+    # fclipモデルを初期化
+    num_input_channels = X.shape[1]
+    num_output_channels = 128  # 任意の出力チャネル数
+    num_subjects = 4  # 仮の被験者数
+    num_classes = 1854  # クラス数（画像カテゴリ数）
+    model = fclip(num_input_channels, num_output_channels, num_subjects, num_classes)
+
+    # モデルの出力を取得
+    Z = model(X, subject_ids, sensor_locs)
+    print(f"Output shape: {Z.shape}")
+
+if __name__ == "__main__":
+    main()

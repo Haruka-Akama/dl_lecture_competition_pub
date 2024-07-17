@@ -2,10 +2,10 @@
 
 # General settings
 seed: 1234
-device: cuda:0
+device: cuda:0,1
 use_wandb: False
-data_dir: workspace/dl_lecture_competition_pub/data
-images_dir: workspace/dl_lecture_competition_pub/data/Images
+data_dir: /data1/akamaharuka/data-omni
+images_dir: /data1/akamaharuka/Images
 
 # DataLoader settings
 batch_size: 64
