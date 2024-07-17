@@ -16,7 +16,7 @@ class LSTMConvClassifier(nn.Module):
         subject_emb_dim: int = 32,
         lstm_hidden_dim: int = 64,
         lstm_layers: int = 2,
-        dropout_prob: float = 0.8,
+        dropout_prob: float = 0.6,
         weight_decay: float = 1e-5
     ) -> None:
         super().__init__()
@@ -66,7 +66,7 @@ class ConvBlock(nn.Module):
         in_dim,
         out_dim,
         kernel_size: int = 3,
-        p_drop: float = 0.8,
+        p_drop: float = 0.6,
     ) -> None:
         super().__init__()
         
