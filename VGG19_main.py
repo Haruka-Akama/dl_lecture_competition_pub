@@ -8,10 +8,10 @@ import hydra
 from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
-from tqdm import tqdm
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.models import vgg19_bn
+import gc
 
 from src.VGG19_datasets import ThingsMEGDataset_VGG19
 from src.VGG19_utils import set_seed
@@ -19,6 +19,10 @@ from src.VGG19_utils import set_seed
 # collectionsモジュールを使わずにエラーを回避するためのパッチ
 import collections
 collections.Container = collections.abc.Collection
+
+def free_gpu_memory():
+    torch.cuda.empty_cache()
+    gc.collect()
 
 @hydra.main(version_base=None, config_path="configs", config_name="VGG19_config")
 def run(args: DictConfig):
@@ -61,12 +65,12 @@ def run(args: DictConfig):
     #     Optimizer
     # ------------------
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
-    scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.1, patience=15, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.1, patience=8, verbose=True)
 
     # ------------------
     #   Early Stopping
     # ------------------
-    early_stopping_patience = 30
+    early_stopping_patience = 20
     early_stopping_counter = 0
     max_val_acc = 0
 
@@ -83,36 +87,30 @@ def run(args: DictConfig):
         train_loss, train_acc, val_loss, val_acc = [], [], [], []
         
         model.train()
-        with tqdm(total=len(train_loader), desc=f"Epoch {epoch+1}/{args.epochs} Train", unit="batch", leave=True) as pbar:
-            for X, y, subject_idxs in train_loader:
-                X, y = X.to(device), y.to(device)
+        for X, y, subject_idxs in train_loader:
+            X, y = X.to(device), y.to(device)
 
-                y_pred = model(X)
-                
-                loss = F.cross_entropy(y_pred, y)
-                train_loss.append(loss.item())
-                
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                
-                acc = accuracy(y_pred, y)
-                train_acc.append(acc.item())
-
-                pbar.update(1)
+            y_pred = model(X)
+            
+            loss = F.cross_entropy(y_pred, y)
+            train_loss.append(loss.item())
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            acc = accuracy(y_pred, y)
+            train_acc.append(acc.item())
 
         model.eval()
-        with tqdm(total=len(val_loader), desc=f"Epoch {epoch+1}/{args.epochs} Validation", unit="batch", leave=True) as pbar:
-            for X, y, subject_idxs in val_loader:
-                X, y = X.to(device), y.to(device)
-                
-                with torch.no_grad():
-                    y_pred = model(X)
-                
-                val_loss.append(F.cross_entropy(y_pred, y).item())
-                val_acc.append(accuracy(y_pred, y).item())
-
-                pbar.update(1)
+        for X, y, subject_idxs in val_loader:
+            X, y = X.to(device), y.to(device)
+            
+            with torch.no_grad():
+                y_pred = model(X)
+            
+            val_loss.append(F.cross_entropy(y_pred, y).item())
+            val_acc.append(accuracy(y_pred, y).item())
 
         # Log metrics and update scheduler
         avg_train_loss = np.mean(train_loss)
@@ -141,6 +139,10 @@ def run(args: DictConfig):
         if early_stopping_counter >= early_stopping_patience:
             cprint("Early stopping triggered.", "red")
             break
+
+        # 10エポックごとにGPUメモリをクリア
+        if (epoch + 1) % 10 == 0:
+            free_gpu_memory()
     
     print("Training complete, starting evaluation")
 
@@ -152,10 +154,8 @@ def run(args: DictConfig):
 
     preds = [] 
     model.eval()
-    with tqdm(total=len(test_loader), desc="Test", unit="batch", leave=True) as pbar:
-        for X, subject_idxs in test_loader:        
-            preds.append(model(X.to(device)).detach().cpu())
-            pbar.update(1)
+    for X, subject_idxs in test_loader:        
+        preds.append(model(X.to(device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
     np.save(os.path.join(logdir, "submission"), preds)
