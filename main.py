@@ -31,18 +31,15 @@ def run(args: DictConfig):
     print("Debug start")
     
     # データ増強の設定
-    train_transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
-        transforms.ToTensor()
-    ])
-    
-    val_transform = transforms.Compose([
-        transforms.ToTensor()
-    ])
-    
-    train_set = ThingsMEGDataset("train", args.data_dir, transform=train_transform)
-    train_loader = torch.utils.data.DataLoader(train_set, shuffle=True, **loader_args)
+train_transform = transforms.Compose([
+    transforms.RandomRotation(degrees=15),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor()
+])
+
+train_set = ThingsMEGDataset("train", args.data_dir, transform=train_transform)
+train_loader = torch.utils.data.DataLoader(train_set, shuffle=True, **loader_args)
+
     print("Train load complete")
     
     val_set = ThingsMEGDataset("val", args.data_dir, transform=val_transform)
