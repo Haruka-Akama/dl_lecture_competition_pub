@@ -15,6 +15,7 @@ from src.datasets import ThingsMEGDataset
 from src.models import LSTMConvClassifier
 from src.utils import set_seed
 
+
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):
     set_seed(args.seed)
@@ -25,6 +26,7 @@ def run(args: DictConfig):
     
     # Data augmentation and transformation
     train_transform = transforms.Compose([
+        transforms.ToPILImage(),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
         transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
@@ -32,6 +34,7 @@ def run(args: DictConfig):
     ])
     
     val_transform = transforms.Compose([
+        transforms.ToPILImage(),
         transforms.Resize(256),
         transforms.CenterCrop(224),
         transforms.ToTensor()

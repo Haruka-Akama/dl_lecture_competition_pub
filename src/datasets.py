@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import torch
+from PIL import Image
 
 class ThingsMEGDataset(torch.utils.data.Dataset):
     def __init__(self, split: str, data_dir: str = "data", transform=None) -> None:
@@ -31,7 +32,7 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
     def __getitem__(self, i):
         X = self.X[i]
         if self.transform:
-            X = self.transform(X)
+            X = self.transform(Image.fromarray(X.numpy().transpose((1, 2, 0))))
         if hasattr(self, "y"):
             return X, self.y[i], self.subject_idxs[i]
         else:
