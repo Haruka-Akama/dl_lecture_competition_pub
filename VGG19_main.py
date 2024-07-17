@@ -51,7 +51,15 @@ def run(args: DictConfig):
     # ------------------
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = vgg19_bn(pretrained=True)
-    model.classifier[6] = torch.nn.Linear(4096, train_set.num_classes)  # 最終層を置き換える
+    model.classifier = torch.nn.Sequential(
+        torch.nn.Linear(25088, 4096),
+        torch.nn.ReLU(True),
+        torch.nn.Dropout(p=0.6),
+        torch.nn.Linear(4096, 4096),
+        torch.nn.ReLU(True),
+        torch.nn.Dropout(p=0.6),
+        torch.nn.Linear(4096, train_set.num_classes),
+    )
     
     if torch.cuda.device_count() > 1:
         print("Using GPUs: 0 and 1")
