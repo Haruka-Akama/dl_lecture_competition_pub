@@ -23,7 +23,7 @@ class ThingsMEGDataset(Dataset):
         ])
 
     def __len__(self) -> int:
-        return self.num_samples
+        return 65728
 
     def __getitem__(self, i):
         X_path = os.path.join(self.data_dir, f"{self.split}_X", str(i).zfill(5) + ".npy")
@@ -72,6 +72,7 @@ class ImageDataset(Dataset):
         self.image_paths = glob(os.path.join(images_dir, '**', '*.jpg'), recursive=True)
         self.relative_paths = [os.path.relpath(path, images_dir) for path in self.image_paths]
         self.labels = [os.path.dirname(rel_path).replace(os.sep, '/') for rel_path in self.relative_paths]
+
 
     def __getitem__(self, i):
         subject_idx_path = os.path.join(self.data_dir, f"{self.split}_subject_idxs", str(i).zfill(5) + ".npy")

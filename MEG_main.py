@@ -1,7 +1,4 @@
 import os
-import sys
-sys.path.append('/home/akamaharuka/dl_lecture_competition_pub/src')
-import glob
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -11,8 +8,8 @@ import hydra
 from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
+from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
-from torchvision.models import vgg19_bn
 from torchvision import transforms
 
 from src.MEG_datasets import ThingsMEGDataset, ImageDataset
@@ -39,37 +36,32 @@ def run(args: DictConfig):
     
     val_set = ThingsMEGDataset("val", args.data_dir)
     val_loader = DataLoader(val_set, shuffle=False, **loader_args)
-    print("val load complete")
+    print("Val load complete")
 
     test_set = ThingsMEGDataset("test", args.data_dir)
     test_loader = DataLoader(test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers)
-    print("test load complete")
+    print("Test load complete")
 
     # 画像データセット
     transform = transforms.Compose([transforms.ToTensor()])
-    image_train_set = ImageDataset(split='train', images_dir='data1/akamaharuka/Images', data_dir=args.data_dir, transform=transform)
+    image_train_set = ImageDataset(split='train', images_dir='workspace/dl_lecture_competition_pub/data/Images', data_dir=args.data_dir, transform=transform)
     image_train_loader = DataLoader(image_train_set, shuffle=True, **loader_args)
 
-    image_val_set = ImageDataset(split='val', images_dir='data1/akamaharuka/Images', data_dir=args.data_dir, transform=transform)
+    image_val_set = ImageDataset(split='val', images_dir='workspace/dl_lecture_competition_pub/data/Images', data_dir=args.data_dir, transform=transform)
     image_val_loader = DataLoader(image_val_set, shuffle=False, **loader_args)
 
-    image_test_set = ImageDataset(split='test', images_dir='data1/akamaharuka/Images', data_dir=args.data_dir, transform=transform)
+    image_test_set = ImageDataset(split='test', images_dir='workspace/dl_lecture_competition_pub/data/Images', data_dir=args.data_dir, transform=transform)
     image_test_loader = DataLoader(image_test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers)
 
     # ------------------
     #       Model
     # ------------------
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = vgg19_bn(pretrained=True)
-    model.classifier[6] = torch.nn.Linear(4096, train_set.num_classes)  # 最終層を置き換える
-
-    if torch.cuda.device_count() > 1:
-        print("Using GPUs: 0 and 1")
-        model = torch.nn.DataParallel(model, device_ids=[0, 1])  # GPU0とGPU1を使用
-    else:
-        print("Using a single GPU")
-
-    model = model.to(device)
+    model = fclip(
+        num_input_channels=train_set.num_channels,
+        num_output_channels=args.hid_dim,
+        num_subjects=args.num_subjects,
+        num_classes=train_set.num_classes
+    ).to(args.device)
 
     # ------------------
     #     Optimizer
@@ -84,7 +76,7 @@ def run(args: DictConfig):
     max_val_acc = 0
     accuracy = Accuracy(
         task="multiclass", num_classes=train_set.num_classes, top_k=10
-    ).to(device)
+    ).to(args.device)
     
     early_stopping_patience = 30
     early_stopping_counter = 0
@@ -95,8 +87,8 @@ def run(args: DictConfig):
         train_loss, train_acc, val_loss, val_acc = [], [], [], []
         
         model.train()
-        for X, y, subject_idxs in train_loader:
-            X, y, subject_idxs = X.to(device), y.to(device), subject_idxs.to(device)
+        for X, y, subject_idxs in tqdm(train_loader, desc="Train"):
+            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
 
             y_pred = model(X, subject_idxs)
             
@@ -111,8 +103,8 @@ def run(args: DictConfig):
             train_acc.append(acc.item())
 
         model.eval()
-        for X, y, subject_idxs in val_loader:
-            X, y, subject_idxs = X.to(device), y.to(device), subject_idxs.to(device)
+        for X, y, subject_idxs in tqdm(val_loader, desc="Validation"):
+            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
             
             with torch.no_grad():
                 y_pred = model(X, subject_idxs)
@@ -144,12 +136,12 @@ def run(args: DictConfig):
     # ----------------------------------
     #  Start evaluation with best model
     # ----------------------------------
-    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=device))
+    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=args.device))
 
     preds = [] 
     model.eval()
-    for X, subject_idxs in test_loader:        
-        preds.append(model(X.to(device), subject_idxs.to(device)).detach().cpu())
+    for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
+        preds.append(model(X.to(args.device), subject_idxs.to(args.device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
     np.save(os.path.join(logdir, "submission"), preds)

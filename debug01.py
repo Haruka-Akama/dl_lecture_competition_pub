@@ -4,17 +4,8 @@ import torch
 from glob import glob
 from torch.utils.data import Dataset
 from torchvision import transforms
-
-def global_contrast_normalization(X: torch.Tensor, s: float = 1.0, λ: float = 10.0) -> torch.Tensor:
-    X_mean = X.mean(dim=1, keepdim=True)
-    X = X - X_mean  # 平均を引く
-
-    contrast = torch.sqrt(λ + (X ** 2).sum(dim=1, keepdim=True))
-    X = s * X / contrast  # 正規化
-
-    return X
-
-class ThingsMEGDataset_VGG19(Dataset):
+from PIL import Image
+class ThingsMEGDataset(Dataset):
     def __init__(self, split: str, data_dir: str = "/data1/akamaharuka/data-omni/") -> None:
         super().__init__()
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
@@ -22,10 +13,8 @@ class ThingsMEGDataset_VGG19(Dataset):
         self.split = split
         self.data_dir = data_dir
         self.num_classes = 1854
-        self.num_samples = len(glob(os.path.join(data_dir, f"{split}_X", "*.npy")))
-        print(f"Number of samples: {self.num_samples}")  # デバッグプリント
-        
-        # トランスフォームの定義
+        self.num_samples = 65728
+                # トランスフォームの定義
         self.transform = transforms.Compose([
             transforms.ToPILImage(),  # PIL画像に変換
             transforms.Resize((224, 224)),  # サイズ変更
@@ -34,13 +23,11 @@ class ThingsMEGDataset_VGG19(Dataset):
         ])
 
     def __len__(self) -> int:
-        return self.num_samples
+        return 65728
 
     def __getitem__(self, i):
         X_path = os.path.join(self.data_dir, f"{self.split}_X", str(i).zfill(5) + ".npy")
         X = torch.from_numpy(np.load(X_path)).float()
-        
-        X = global_contrast_normalization(X)  # グローバルコントラスト正規化の適用
         
         # 必要に応じて次元を調整
         if X.dim() == 2:  # (チャネル, 幅) -> (1, 高さ, 幅)
@@ -60,15 +47,79 @@ class ThingsMEGDataset_VGG19(Dataset):
             return X, y, subject_idx
         else:
             return X, subject_idx
-        
+
     @property
     def num_channels(self) -> int:
-        return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.npy")).shape[0]
-    
+        sample = np.load(self.X_paths[0])
+        return sample.shape[0]
+
     @property
     def seq_len(self) -> int:
-        return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.npy")).shape[1]
+        sample = np.load(self.X_paths[0])
+        return sample.shape[1]
 
-# Example usage:
-dataset = ThingsMEGDataset_VGG19(split="train", data_dir="/data1/akamaharuka/data-omni/")
-print(f"Number of samples in the dataset: {dataset.num_samples}")
+class ImageDataset(Dataset):
+    def __init__(self, split: str, images_dir: str = "/data1/akamaharuka/Images", data_dir: str = "/data1/akamaharuka/data-omni", transform=None):
+        super().__init__()
+        assert split in ["train", "val", "test"], f"Invalid split: {split}"
+        
+        self.images_dir = images_dir
+        self.data_dir = data_dir
+        self.split = split
+        self.transform = transform
+        
+        # 画像パスとラベルを取得
+        self.image_paths = glob(os.path.join(images_dir, '**', '*.jpg'), recursive=True)
+        self.relative_paths = [os.path.relpath(path, images_dir) for path in self.image_paths]
+        self.labels = [os.path.dirname(rel_path).replace(os.sep, '/') for rel_path in self.relative_paths]
+        print(f"ImageDataset {split}: Found {len(self.image_paths)} images.")
+        print(f"Image paths: {self.image_paths[:5]}")  # 最初の5つの画像パスを表示して確認
+
+    def __len__(self) -> int:
+        return len(self.image_paths)    
+
+    def __getitem__(self, i):
+        subject_idx_path = os.path.join(self.data_dir, f"{self.split}_subject_idxs", str(i).zfill(5) + ".npy")
+        subject_idx = torch.from_numpy(np.load(subject_idx_path))
+        
+        if self.split in ["train", "val"]:
+            y_path = os.path.join(self.data_dir, f"{self.split}_y", str(i).zfill(5) + ".npy")
+            y = torch.from_numpy(np.load(y_path))
+            return y, subject_idx
+        else:
+            return y, subject_idx
+
+    
+    def __len__(self) -> int:
+        return len(self.image_paths)    
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        image = Image.open(image_path).convert('RGB')
+
+        if self.transform:
+            image = self.transform(image)
+        
+        if self.y is not None:
+            label = self.y[idx]
+            return image, label, self.image_files[idx]
+        else:
+            return image, self.image_files[idx]
+        
+
+
+
+
+    @property
+    def num_subjects(self) -> int:
+        return len(np.unique(self.subject_idxs))
+
+    @property
+    def num_classes(self) -> int:
+        return len(np.unique(self.y)) if self.y is not None else None
+if __name__ == "__main__":
+    dataset = ImageDataset(split="train", images_dir="data1/akamaharuka/Images", data_dir="/data1/akamaharuka/data-omni")
+    print(f"Dataset length: {len(dataset)}")
+
+    for i in range(5):
+        sample = dataset[i]
+        print(f"Sample {i} - Image shape: {sample[0].shape}, y: {sample[1] if len(sample) > 1 else 'N/A'}, subject idx: {sample[2]}")
