@@ -5,17 +5,8 @@ from glob import glob
 from torch.utils.data import Dataset  # インポート追加
 from torchvision import transforms  # インポート追加
 
-def global_contrast_normalization(X: torch.Tensor, s: float = 1.0, λ: float = 10.0) -> torch.Tensor:
-    X_mean = X.mean(dim=1, keepdim=True)
-    X = X - X_mean  # 平均を引く
-
-    contrast = torch.sqrt(λ + (X ** 2).sum(dim=1, keepdim=True))
-    X = s * X / contrast  # 正規化
-
-    return X
-
 class ThingsMEGDataset_VGG19(Dataset):
-    def __init__(self, split: str, data_dir: str = " /data1/akamaharuka/data-omni/") -> None:
+    def __init__(self, split: str, data_dir: str = "/data1/akamaharuka/data-omni/") -> None:
         super().__init__()
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
         
@@ -38,8 +29,6 @@ class ThingsMEGDataset_VGG19(Dataset):
     def __getitem__(self, i):
         X_path = os.path.join(self.data_dir, f"{self.split}_X", str(i).zfill(5) + ".npy")
         X = torch.from_numpy(np.load(X_path)).float()
-        
-        X = global_contrast_normalization(X)  # グローバルコントラスト正規化の適用
         
         # 必要に応じて次元を調整
         if X.dim() == 2:  # (チャネル, 幅) -> (1, 高さ, 幅)
@@ -69,4 +58,4 @@ class ThingsMEGDataset_VGG19(Dataset):
         return np.load(os.path.join(self.data_dir, f"{self.split}_X", "00000.npy")).shape[1]
 
 # Example usage:
-# dataset = ThingsMEGDataset(split="train", data_dir="/workspace/dl_lecture_competition_pub/data/")
+# dataset = ThingsMEGDataset_VGG19(split="train", data_dir="/workspace/dl_lecture_competition_pub/data/")

@@ -12,7 +12,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.models import vgg19_bn
 import gc
-
+from torchvision.models import VGG19_BN_Weight
 from src.VGG19_datasets import ThingsMEGDataset_VGG19
 from src.VGG19_utils import set_seed
 
