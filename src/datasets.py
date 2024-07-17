@@ -1,9 +1,7 @@
-import os
-import numpy as np
 import torch
-from torch.utils.data import Dataset
+import os
 
-class ThingsMEGDataset(Dataset):
+class ThingsMEGDataset(torch.utils.data.Dataset):
     def __init__(self, split: str, data_dir: str = "/data1/akamaharuka/data/") -> None:
         super().__init__()
         
@@ -24,20 +22,15 @@ class ThingsMEGDataset(Dataset):
             self.y = torch.load(os.path.join(data_dir, f"{split}_y.pt"))
             assert len(torch.unique(self.y)) == self.num_classes, "Number of classes do not match."
             print(f"{split}_y.pt loaded successfully.")
-        else:
-            self.y = None
 
     def __len__(self) -> int:
         return len(self.X)
 
     def __getitem__(self, i):
-        X = self.X[i]
-        subject_idx = self.subject_idxs[i]
-        if self.y is not None:
-            y = self.y[i]
-            return X, y, subject_idx
+        if hasattr(self, "y"):
+            return self.X[i], self.y[i], self.subject_idxs[i]
         else:
-            return X, subject_idx
+            return self.X[i], self.subject_idxs[i]
 
     @property
     def num_channels(self) -> int:
@@ -46,6 +39,3 @@ class ThingsMEGDataset(Dataset):
     @property
     def seq_len(self) -> int:
         return self.X.shape[2]
-
-# Usage example
-

@@ -1,5 +1,5 @@
 batch_size: 256
-epochs: 100
+epochs: 40
 lr: 0.001
 
 device: cuda:0,1
@@ -9,14 +9,6 @@ use_wandb: False
 
 data_dir: /data1/akamaharuka/data/
 
-# Model Hyperparameters
-hid_dim: 128  # 例: 隠れ層の次元数
-num_layers: 6  # 例: Transformerのエンコーダ層の数
-num_heads: 8  # 例: マルチヘッドアテンションのヘッド数
-ff_dim: 512  # 例: フィードフォワード層の次元数
-dropout_prob: 0.5
-weight_decay: 1e-5
-num_subjects: 4  # 被験者の数
-
 # Evaluation
-model_path: outputs/model_best.pt
+model_path: 
+#model_path: outputs/model_best.pt

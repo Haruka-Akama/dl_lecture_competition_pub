@@ -7,13 +7,12 @@ import hydra
 from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
-from tqdm import tqdm
-from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
+#from src.datasets_preprocess import ThingsMEGDataset
 from src.datasets import ThingsMEGDataset
-from src.models import TransformerClassifier  # 変更
+from src.models import LSTMConvClassifier
 from src.utils import set_seed
-
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def run(args: DictConfig):
@@ -46,24 +45,23 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = TransformerClassifier(
-        num_classes=train_set.num_classes,
-        seq_len=train_set.seq_len,
-        in_channels=train_set.num_channels,
-        hid_dim=args.hid_dim,
-        num_layers=args.num_layers,
-        num_heads=args.num_heads,
-        ff_dim=args.ff_dim,
-        dropout_prob=args.dropout_prob,
-        num_subjects=args.num_subjects
-    ).to(args.device)
+    model = LSTMConvClassifier(
+        train_set.num_classes, train_set.seq_len, train_set.num_channels, dropout_prob=0.7
+    )
+
+    if torch.cuda.device_count() > 1:
+        print("Using GPUs: 0 and 1")
+        model = torch.nn.DataParallel(model, device_ids=[0, 1])  # GPU0とGPU1を使用
+    else:
+        print("Using a single GPU")
+
+    model = model.to(args.device)
 
     # ------------------
     #     Optimizer
     # ------------------
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
-    step_scheduler = StepLR(optimizer, step_size=10, gamma=0.5)  # 10エポックごとに学習率を半減
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
+    scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # ------------------
     #   Start training
@@ -73,7 +71,7 @@ def run(args: DictConfig):
         task="multiclass", num_classes=train_set.num_classes, top_k=10
     ).to(args.device)
     
-    early_stopping_patience = 30
+    early_stopping_patience = 10
     early_stopping_counter = 0
       
     for epoch in range(args.epochs):
@@ -82,7 +80,7 @@ def run(args: DictConfig):
         train_loss, train_acc, val_loss, val_acc = [], [], [], []
         
         model.train()
-        for X, y, subject_idxs in tqdm(train_loader, desc="Train"):
+        for batch_idx, (X, y, subject_idxs) in enumerate(train_loader):
             X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
 
             y_pred = model(X, subject_idxs)
@@ -97,8 +95,11 @@ def run(args: DictConfig):
             acc = accuracy(y_pred, y)
             train_acc.append(acc.item())
 
+            if (batch_idx + 1) % 10 == 0:
+                print(f"Train Epoch: {epoch+1} [{batch_idx * len(X)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f} Accuracy: {acc.item():.6f}")
+
         model.eval()
-        for X, y, subject_idxs in tqdm(val_loader, desc="Validation"):
+        for batch_idx, (X, y, subject_idxs) in enumerate(val_loader):
             X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
             
             with torch.no_grad():
@@ -106,6 +107,9 @@ def run(args: DictConfig):
             
             val_loss.append(F.cross_entropy(y_pred, y).item())
             val_acc.append(accuracy(y_pred, y).item())
+
+            if (batch_idx + 1) % 10 == 0:
+                print(f"Validation Epoch: {epoch+1} [{batch_idx * len(X)}/{len(val_loader.dataset)}] Loss: {val_loss[-1]:.6f} Accuracy: {val_acc[-1]:.6f}")
 
         print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc):.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
         torch.save(model.state_dict(), os.path.join(logdir, "model_last.pt"))
@@ -125,14 +129,7 @@ def run(args: DictConfig):
             cprint("Early stopping triggered.", "red")
             break
         
-        cosine_scheduler.step()
-        step_scheduler.step()
-
-        # 現在の学習率を取得して表示
-        current_lr = optimizer.param_groups[0]['lr']
-        print(f"Current learning rate: {current_lr}")
-        if args.use_wandb:
-            wandb.log({"learning_rate": current_lr})
+        scheduler.step()
     
     # ----------------------------------
     #  Start evaluation with best model
@@ -141,7 +138,7 @@ def run(args: DictConfig):
 
     preds = [] 
     model.eval()
-    for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
+    for X, subject_idxs in test_loader:        
         preds.append(model(X.to(args.device), subject_idxs.to(args.device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
