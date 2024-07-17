@@ -31,8 +31,10 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, i):
         X = self.X[i]
+        if X.dim() == 3:  # チャネル、高さ、幅
+            X = X.permute(1, 2, 0)  # 高さ、幅、チャネルに変換
         if self.transform:
-            X = self.transform(Image.fromarray(X.numpy().transpose((1, 2, 0))))
+            X = self.transform(Image.fromarray(X.numpy()))
         if hasattr(self, "y"):
             return X, self.y[i], self.subject_idxs[i]
         else:
