@@ -90,7 +90,7 @@ def run(args: DictConfig):
 
         model.eval()
         for X, y, subject_idxs in tqdm(val_loader, desc="Validation"):
-            X, y, subject_idxs = X.to(device), y.to(device), subject_idxs.to(device)
+            X, y, subject_idxs = X.to(args.device), y.to(args.device), subject_idxs.to(args.device)
             
             with torch.no_grad():
                 y_pred = model(X, subject_idxs)
