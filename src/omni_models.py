@@ -2,9 +2,26 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops.layers.torch import Rearrange
-from omegaconf import DictConfig 
 
-class BasicLSTMClassifier(nn.Module):
+class Attention(nn.Module):
+    def __init__(self, hidden_dim):
+        super(Attention, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.attention_weights = nn.Parameter(torch.Tensor(hidden_dim, hidden_dim))
+        self.context_vector = nn.Parameter(torch.Tensor(hidden_dim, 1))
+        nn.init.xavier_uniform_(self.attention_weights)
+        nn.init.xavier_uniform_(self.context_vector)
+
+    def forward(self, hidden_states):
+        # hidden_states: (batch_size, seq_len, hidden_dim)
+        u = torch.tanh(torch.matmul(hidden_states, self.attention_weights))  # (batch_size, seq_len, hidden_dim)
+        a = torch.matmul(u, self.context_vector).squeeze(-1)  # (batch_size, seq_len)
+        attention_scores = F.softmax(a, dim=-1)  # (batch_size, seq_len)
+        attention_scores = attention_scores.unsqueeze(-1)  # (batch_size, seq_len, 1)
+        weighted_sum = torch.sum(hidden_states * attention_scores, dim=1)  # (batch_size, hidden_dim)
+        return weighted_sum
+
+class BasicLSTMClassifierWithAttention(nn.Module):
     def __init__(
         self,
         num_classes: int,
@@ -21,31 +38,20 @@ class BasicLSTMClassifier(nn.Module):
             hidden_size=hid_dim,
             num_layers=num_layers,
             batch_first=True,
-            dropout=p_drop if num_layers > 1 else 0
+            dropout=p_drop if num_layers > 1 else 0,
+            bidirectional=True
         )
 
+        self.attention = Attention(hid_dim * 2)  # 双方向LSTMのため * 2
         self.dropout = nn.Dropout(p_drop)
         self.head = nn.Sequential(
-            nn.Linear(hid_dim, num_classes),
+            nn.Linear(hid_dim * 2, num_classes),  # 双方向のため * 2
         )
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
-        """_summary_
-        Args:
-            X ( b, c, t ): _description_
-        Returns:
-            X ( b, num_classes ): _description_
-        """
-        # (b, c, t) -> (b, t, c)
-        X = X.permute(0, 2, 1)
-        X, _ = self.lstm(X)
-        X = self.dropout(X[:, -1, :])  # 末尾の時間ステップの出力を使用
-        return self.head(X)
-
-# 他のコードと互換性を保つための設定
-def run(args: DictConfig):
-    set_seed(args.seed)
-    logdir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
-    
-    if args.use_wandb:
-        wandb.init(mode="online", dir=logdir, project="MEG-classification")
+        X = X.permute(0, 2, 1)  # (batch_size, seq_len, in_channels)
+        self.lstm.flatten_parameters()
+        lstm_out, _ = self.lstm(X)  # (batch_size, seq_len, hid_dim * 2)
+        attention_out = self.attention(lstm_out)  # (batch_size, hid_dim * 2)
+        attention_out = self.dropout(attention_out)
+        return self.head(attention_out)

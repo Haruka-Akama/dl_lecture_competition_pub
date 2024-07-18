@@ -47,13 +47,17 @@ def run(args: DictConfig):
     #       Model
     # ------------------
     model = LSTMConvClassifier(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels, dropout_prob=0.5
+        num_classes=train_set.num_classes,
+        seq_len=train_set.seq_len,
+        in_channels=train_set.num_channels,
+        dropout_prob=0.5,
+        num_heads=8  # Attentionヘッド数を追加
     ).to(args.device)
 
     # ------------------
     #     Optimizer
     # ------------------
-    optimizer = torch.optim.AdamW(model.parameters(), lr= args.lr, weight_decay=1e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
     scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # ------------------

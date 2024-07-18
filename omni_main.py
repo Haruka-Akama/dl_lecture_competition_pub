@@ -1,4 +1,4 @@
-import os, sys
+import os
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -11,14 +11,14 @@ import torch.nn as nn
 import torch.utils.data
 import collections.abc
 import collections
-import gc  # ガベージコレクションモジュールのインポート
+import gc
 
 # collections.Containerが存在しない場合の対策
 if not hasattr(collections, 'Container'):
     collections.Container = collections.abc.Container
 
 from src.omni_datasets import ThingsMEGDataset
-from src.omni_models import BasicLSTMClassifier
+from src.omni_models import BasicLSTMClassifierWithAttention
 from src.omni_utils import set_seed
 
 @hydra.main(version_base=None, config_path="configs", config_name="omni_config")
@@ -46,32 +46,29 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = BasicLSTMClassifier(
-    
+    model = BasicLSTMClassifierWithAttention(
         train_set.num_classes, train_set.seq_len, train_set.num_channels, hid_dim=128, num_layers=2, p_drop=0.5)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device_ids = [0, 1]
-
-    # DataParallelを使用してモデルを複数のGPUで実行
-    model = nn.DataParallel(model, device_ids=device_ids)
-
-    # モデルを指定したデバイスに転送
+    model = nn.DataParallel(model, device_ids=[0, 1])
     model = model.to(device)
 
     # 使用しているGPUを表示
-    print(f"Using GPUs: {device_ids}")
+    print(f"Using GPUs: {model.device_ids}")
+
     # ------------------
-    #     Optimizer
+    #     Optimizer and Scheduler
     # ------------------
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
 
     # ------------------
     #   Start training
     # ------------------  
     max_val_acc = 0
-    accuracy = Accuracy(
-        task="multiclass", num_classes=train_set.num_classes, top_k=10
-    ).to(device)
+    accuracy = Accuracy(task="multiclass", num_classes=train_set.num_classes, top_k=10).to(device)
+
+    early_stopping_patience = 5
+    no_improvement_epochs = 0
       
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}/{args.epochs}")
@@ -83,7 +80,6 @@ def run(args: DictConfig):
             X, y = X.to(device), y.to(device)
 
             y_pred = model(X)
-            
             loss = F.cross_entropy(y_pred, y)
             train_loss.append(loss.item())
             
@@ -97,13 +93,13 @@ def run(args: DictConfig):
         model.eval()
         for X, y, subject_idxs in val_loader:
             X, y = X.to(device), y.to(device)
-            
             with torch.no_grad():
                 y_pred = model(X)
-            
             val_loss.append(F.cross_entropy(y_pred, y).item())
             val_acc.append(accuracy(y_pred, y).item())
 
+        scheduler.step(np.mean(val_loss))  # スケジューラーのステップ
+        
         print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc):.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")
         torch.save(model.state_dict(), os.path.join(logdir, "model_last.pt"))
         if args.use_wandb:
@@ -113,6 +109,14 @@ def run(args: DictConfig):
             cprint("New best.", "cyan")
             torch.save(model.state_dict(), os.path.join(logdir, "model_best.pt"))
             max_val_acc = np.mean(val_acc)
+            no_improvement_epochs = 0  # 改善があったのでリセット
+        else:
+            no_improvement_epochs += 1
+
+        # Early Stoppingのチェック
+        if no_improvement_epochs >= early_stopping_patience:
+            print(f"Early stopping at epoch {epoch+1}")
+            break
             
     # ----------------------------------
     #  Start evaluation with best model
