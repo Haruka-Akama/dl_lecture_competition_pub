@@ -59,7 +59,8 @@ def run(args: DictConfig):
     #     Optimizer and Scheduler
     # ------------------
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.25)
+
 
     # ------------------
     #   Start training
@@ -67,7 +68,7 @@ def run(args: DictConfig):
     max_val_acc = 0
     accuracy = Accuracy(task="multiclass", num_classes=train_set.num_classes, top_k=10).to(device)
 
-    early_stopping_patience = 5
+    early_stopping_patience = 7
     no_improvement_epochs = 0
       
     for epoch in range(args.epochs):
