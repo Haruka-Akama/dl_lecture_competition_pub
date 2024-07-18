@@ -77,40 +77,40 @@ class LSTMConvClassifier(nn.Module):
         return self.head(X.permute(0, 2, 1))
     
     class ConvBlock(nn.Module):
-    def __init__(
-        self,
-        in_dim,
-        out_dim,
-        kernel_size: int = 3,
-        p_drop: float = 0.5,
-    ) -> None:
-        super().__init__()
-        
-        self.in_dim = in_dim
-        self.out_dim = out_dim
+        def __init__(
+            self,
+            in_dim,
+            out_dim,
+            kernel_size: int = 3,
+            p_drop: float = 0.5,
+        ) -> None:
+            super().__init__()
+            
+            self.in_dim = in_dim
+            self.out_dim = out_dim
 
-        self.conv0 = nn.Conv1d(in_dim, out_dim, kernel_size, padding="same")
-        self.conv1 = nn.Conv1d(out_dim, out_dim, kernel_size, padding="same")
-        
-        self.batchnorm0 = nn.BatchNorm1d(num_features=out_dim)
-        self.batchnorm1 = nn.BatchNorm1d(num_features=out_dim)
-        
-        self.layernorm0 = nn.LayerNorm(out_dim)
-        self.layernorm1 = nn.LayerNorm(out_dim)
+            self.conv0 = nn.Conv1d(in_dim, out_dim, kernel_size, padding="same")
+            self.conv1 = nn.Conv1d(out_dim, out_dim, kernel_size, padding="same")
+            
+            self.batchnorm0 = nn.BatchNorm1d(num_features=out_dim)
+            self.batchnorm1 = nn.BatchNorm1d(num_features=out_dim)
+            
+            self.layernorm0 = nn.LayerNorm(out_dim)
+            self.layernorm1 = nn.LayerNorm(out_dim)
 
-        self.dropout = nn.Dropout(p_drop)
+            self.dropout = nn.Dropout(p_drop)
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
-        if self.in_dim == self.out_dim:
-            X = self.conv0(X) + X  # skip connection
-        else:
-            X = self.conv0(X)
+        def forward(self, X: torch.Tensor) -> torch.Tensor:
+            if self.in_dim == self.out_dim:
+                X = self.conv0(X) + X  # skip connection
+            else:
+                X = self.conv0(X)
 
-        X = F.gelu(self.batchnorm0(X))
-        X = self.layernorm0(X.permute(0, 2, 1)).permute(0, 2, 1)
+            X = F.gelu(self.batchnorm0(X))
+            X = self.layernorm0(X.permute(0, 2, 1)).permute(0, 2, 1)
 
-        X = self.conv1(X) + X  # skip connection
-        X = F.gelu(self.batchnorm1(X))
-        X = self.layernorm1(X.permute(0, 2, 1)).permute(0, 2, 1)
+            X = self.conv1(X) + X  # skip connection
+            X = F.gelu(self.batchnorm1(X))
+            X = self.layernorm1(X.permute(0, 2, 1)).permute(0, 2, 1)
 
-        return self.dropout(X)
+            return self.dropout(X)
