@@ -64,7 +64,7 @@ def run(args: DictConfig):
         task="multiclass", num_classes=train_set.num_classes, top_k=10
     ).to(args.device)
     
-    early_stopping_patience = 5
+    early_stopping_patience = 4
     early_stopping_counter = 0
       
     for epoch in range(args.epochs):

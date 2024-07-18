@@ -11,13 +11,14 @@ import torch.nn as nn
 import torch.utils.data
 import collections.abc
 import collections
+import gc  # ガベージコレクションモジュールのインポート
 
 # collections.Containerが存在しない場合の対策
 if not hasattr(collections, 'Container'):
     collections.Container = collections.abc.Container
 
 from src.omni_datasets import ThingsMEGDataset
-from src.omni_models import BasicConvClassifier
+from src.omni_models import BasicLSTMClassifier
 from src.omni_utils import set_seed
 
 @hydra.main(version_base=None, config_path="configs", config_name="omni_config")
@@ -45,8 +46,9 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = BasicConvClassifier(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels)
+    model = BasicLSTMClassifier(
+    
+        train_set.num_classes, train_set.seq_len, train_set.num_channels, hid_dim=128, num_layers=2, p_drop=0.5)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device_ids = [0, 1]
 
@@ -62,8 +64,6 @@ def run(args: DictConfig):
     #     Optimizer
     # ------------------
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-
-    # ------------------
 
     # ------------------
     #   Start training
@@ -128,6 +128,10 @@ def run(args: DictConfig):
     np.save(os.path.join(logdir, "submission"), preds)
     cprint(f"Submission {preds.shape} saved at {logdir}", "cyan")
 
+    # メモリの解放
+    del model
+    torch.cuda.empty_cache()
+    gc.collect()
 
 if __name__ == "__main__":
     run()
