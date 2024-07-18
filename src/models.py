@@ -109,5 +109,5 @@ model = LSTMConvClassifier(
     kernel_size=5,
     lstm_hidden_dim=64,
     lstm_layers=2,
-    dropout_prob=0.5
+    dropout_prob=0.6
 )
