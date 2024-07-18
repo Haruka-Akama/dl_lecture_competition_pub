@@ -129,11 +129,11 @@ def run(args: DictConfig):
 
     preds = [] 
     model.eval()
-    for X, subject_idxs in tqdm(test_loader, desc="Validation"):        
+    for X, subject_idxs in tqdm(test_loader, desc="Test"):        
         preds.append(model(X.to(args.device), subject_idxs.to(args.device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
-    np.save(os.path.join(logdir, "submission"), preds)
+    np.save(os.path.join(logdir, "submission.npy"), preds)
     cprint(f"Submission {preds.shape} saved at {logdir}", "cyan")
 
 
