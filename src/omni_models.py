@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops.layers.torch import Rearrange
 
-
 class BasicConvClassifier(nn.Module):
     def __init__(
         self,
@@ -15,8 +14,8 @@ class BasicConvClassifier(nn.Module):
         super().__init__()
 
         self.blocks = nn.Sequential(
-            ConvBlock(in_channels, hid_dim),
-            ConvBlock(hid_dim, hid_dim),
+            ConvBlock(in_channels, hid_dim, p_drop=0.8),
+            ConvBlock(hid_dim, hid_dim, p_drop=0.8),
         )
 
         self.head = nn.Sequential(
@@ -33,9 +32,7 @@ class BasicConvClassifier(nn.Module):
             X ( b, num_classes ): _description_
         """
         X = self.blocks(X)
-
         return self.head(X)
-
 
 class ConvBlock(nn.Module):
     def __init__(
@@ -43,7 +40,7 @@ class ConvBlock(nn.Module):
         in_dim,
         out_dim,
         kernel_size: int = 3,
-        p_drop: float = 0.1,
+        p_drop: float = 0.8,
     ) -> None:
         super().__init__()
         
@@ -66,11 +63,13 @@ class ConvBlock(nn.Module):
             X = self.conv0(X)
 
         X = F.gelu(self.batchnorm0(X))
+        X = self.dropout(X)  # ドロップアウトをここに追加
 
         X = self.conv1(X) + X  # skip connection
         X = F.gelu(self.batchnorm1(X))
+        X = self.dropout(X)  # ドロップアウトをここに追加
 
         # X = self.conv2(X)
         # X = F.glu(X, dim=-2)
 
-        return self.dropout(X)
+        return X

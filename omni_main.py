@@ -61,7 +61,9 @@ def run(args: DictConfig):
     # ------------------
     #     Optimizer
     # ------------------
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+    # ------------------
 
     # ------------------
     #   Start training
@@ -115,12 +117,12 @@ def run(args: DictConfig):
     # ----------------------------------
     #  Start evaluation with best model
     # ----------------------------------
-    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=args.device))
+    model.load_state_dict(torch.load(os.path.join(logdir, "model_best.pt"), map_location=device))
 
     preds = [] 
     model.eval()
     for X, subject_idxs in test_loader:        
-        preds.append(model(X.to(args.device)).detach().cpu())
+        preds.append(model(X.to(device)).detach().cpu())
         
     preds = torch.cat(preds, dim=0).numpy()
     np.save(os.path.join(logdir, "submission"), preds)
