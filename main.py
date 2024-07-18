@@ -53,7 +53,7 @@ def run(args: DictConfig):
     # ------------------
     #     Optimizer
     # ------------------
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr= 0.001, weight_decay=1e-5)
     scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # ------------------
