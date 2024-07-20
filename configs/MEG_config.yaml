@@ -1,15 +1,19 @@
 # config.yaml
+defaults:
+  - _self_
+
+
 
 # General settings
 seed: 1234
-device: cuda:0,1
+device: cuda
 use_wandb: False
 data_dir: /data1/akamaharuka/data/
 images_dir: /data1/akamaharuka/Images/
 
 # DataLoader settings
-batch_size: 64
-num_workers: 8
+batch_size: 4
+num_workers: 1
 
 # Model settings
 hid_dim: 128
@@ -30,3 +34,13 @@ weight_decay: 1e-5
 
 # Evaluation settings
 model_path: ./outputs/model_best.pt
+
+world_size: 3
+
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: ${hydra.run.dir}/multirun
+  output_subdir: null

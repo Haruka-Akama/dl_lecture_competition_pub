@@ -2,7 +2,7 @@ batch_size: 256
 epochs: 40
 lr: 0.001
 
-device: cuda:0,1
+device: cuda
 num_workers: 8
 seed: 1234
 use_wandb: False

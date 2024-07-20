@@ -32,7 +32,8 @@ class ThingsMEGDataset(Dataset):
         return len(self.X_paths)
 
     def __getitem__(self, i):
-        X = np.load(self.X_paths[i])
+        data_dir = "/data1/akamaharuka/data"
+        X = np.load(os.path.join(data_dir, f"train_X.pt"))
         subject_idx = self.subject_idxs[i]
         
         if self.y is not None:
@@ -43,12 +44,14 @@ class ThingsMEGDataset(Dataset):
 
     @property
     def num_channels(self) -> int:
-        sample = np.load(self.X_paths[0])
+        data_dir = "/data1/akamaharuka/data"
+        sample = np.load(os.path.join(data_dir, f"train_X.pt"[0]))
         return sample.shape[0]
 
     @property
     def seq_len(self) -> int:
-        sample = np.load(self.X_paths[0])
+        data_dir = "/data1/akamaharuka/data"
+        sample = np.load(data_dir, f"train_X.pt"[0])
         return sample.shape[1]
 
 class ImageDataset(Dataset):
@@ -58,52 +61,77 @@ class ImageDataset(Dataset):
         self.split = split
         self.transform = transform
         
-        print(f"Loading {split}.jpg...")
-        with open(os.path.join(images_dir, f"{split}"), 'r') as file:
-            self.image_paths = [line.strip() for line in file]
-        print(f"{split}.jpg loaded successfully.")
-        
-        print(f"Loading {split}_subject_idxs directory...")
-        subject_dir = os.path.join(data_dir, f"{split}_subject_idxs")
-        self.subject_idxs = []
-        for fname in sorted(os.listdir(subject_dir)):
-            if fname.endswith('.npy'):
-                self.subject_idxs.append(np.load(os.path.join(subject_dir, fname)))
-        self.subject_idxs = np.concatenate(self.subject_idxs, axis=0)
-        print(f"{split}_subject_idxs loaded successfully.")
-        
+        print(f"Loading Images directory '{images_dir}'...")
+        self.image_paths = []
+
+        # ディレクトリを再帰的に探索し、すべての画像ファイルパスをリストに追加
+        for root, _, files in os.walk(images_dir):
+            for file in files:
+                if file.endswith('.jpg'):
+                    # ファイルパスをリストに追加
+                    self.image_paths.append(os.path.join(root, file))
+
+        if len(self.image_paths) == 0:
+            raise RuntimeError(f"No image files found in directory '{images_dir}'")
+
+        print(f"Found {len(self.image_paths)} images.")
+
+        print(f"Loading {split}_subject_idxs.pt...")
+        subject_dir = os.path.join(data_dir, f"{split}_subject_idxs.pt")
+        try:
+            self.subject_idxs = torch.load(subject_dir)
+            print(f"{split}_subject_idxs.pt loaded successfully.")
+        except Exception as e:
+            raise RuntimeError(f"Failed to load {subject_dir}: {e}")
+
         if split in ["train", "val"]:
-            print(f"Loading {split}_y directory...")
-            label_dir = os.path.join(data_dir, f"{split}_y")
-            self.y = []
-            for fname in sorted(os.listdir(label_dir)):
-                if fname.endswith('.npy'):
-                    self.y.append(np.load(os.path.join(label_dir, fname)))
-            self.y = np.concatenate(self.y, axis=0)
-            print(f"{split}_y loaded successfully.")
+            print(f"Loading {split}_y.pt...")
+            label_dir = os.path.join(data_dir, f"{split}_y.pt")
+            try:
+                self.y = torch.load(label_dir)
+                print(f"{split}_y.pt loaded successfully.")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load {label_dir}: {e}")
         else:
             self.y = None
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        image_path = os.path.join(self.images_dir, self.image_paths[idx] + '.jpg')
-        image = Image.open(image_path).convert('RGB')
-        subject_idx = self.subject_idxs[idx]
+        img_path = self.image_paths[idx]
+        image = Image.open(img_path).convert("RGB")
         
         if self.transform:
             image = self.transform(image)
         
         if self.y is not None:
             label = self.y[idx]
-            return image, label, subject_idx
+            return image, label
         else:
-            return image, subject_idx
+            return image
+
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        img_path = self.image_paths[idx]
+        image = Image.open(img_path).convert("RGB")
+        
+        if self.transform:
+            image = self.transform(image)
+        
+        if self.y is not None:
+            label = self.y[idx]
+            return image, label
+        else:
+            return image 
 
     @property
     def num_subjects(self) -> int:
         return len(np.unique(self.subject_idxs))
+
 
     @property
     def num_classes(self) -> int:
