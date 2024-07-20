@@ -31,7 +31,9 @@ def run(args: DictConfig):
         
     train_set = ThingsMEGDataset("train", args.data_dir)
     train_loader = DataLoader(train_set, shuffle=True, **loader_args)
-    train_loader = np.stack(train_loader)
+    batches = [batch for batch in train_loader]
+
+    train_loader = np.stack(batches)
         
     if train_loader.ndim == 3 and train_loader.shape[1] > train_loader.shape[2]:
         # 形状が [バッチサイズ, センサー数, 時間サンプル] の場合、調整不要
