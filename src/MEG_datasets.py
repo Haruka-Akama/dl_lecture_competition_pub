@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-from tqdm import tqdm
 
 class ThingsMEGDataset(Dataset):
     def __init__(self, split: str, data_dir: str = "/data1/akamaharuka/data") -> None:
@@ -60,14 +59,14 @@ class ImageDataset(Dataset):
         self.transform = transform
         
         print(f"Loading {split}.jpg...")
-        with open(os.path.join(images_dir, f"split"), 'r') as file:
+        with open(os.path.join(images_dir, f"{split}"), 'r') as file:
             self.image_paths = [line.strip() for line in file]
         print(f"{split}.jpg loaded successfully.")
         
         print(f"Loading {split}_subject_idxs directory...")
         subject_dir = os.path.join(data_dir, f"{split}_subject_idxs")
         self.subject_idxs = []
-        for fname in tqdm(sorted(os.listdir(subject_dir)), desc="Loading subject_idxs"):
+        for fname in sorted(os.listdir(subject_dir)):
             if fname.endswith('.npy'):
                 self.subject_idxs.append(np.load(os.path.join(subject_dir, fname)))
         self.subject_idxs = np.concatenate(self.subject_idxs, axis=0)
@@ -77,7 +76,7 @@ class ImageDataset(Dataset):
             print(f"Loading {split}_y directory...")
             label_dir = os.path.join(data_dir, f"{split}_y")
             self.y = []
-            for fname in tqdm(sorted(os.listdir(label_dir)), desc="Loading labels"):
+            for fname in sorted(os.listdir(label_dir)):
                 if fname.endswith('.npy'):
                     self.y.append(np.load(os.path.join(label_dir, fname)))
             self.y = np.concatenate(self.y, axis=0)
