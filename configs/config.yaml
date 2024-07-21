@@ -1,9 +1,12 @@
-batch_size: 256
+defaults:
+  - _self_
+
+batch_size: 4
 epochs: 40
 lr: 0.001
 
 device: cuda
-num_workers: 8
+num_workers: 2
 seed: 1234
 use_wandb: False
 
@@ -12,3 +15,10 @@ data_dir: /data1/akamaharuka/data/
 # Evaluation
 model_path: 
 #model_path: outputs/model_best.pt
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: ${hydra.run.dir}/multirun
+  output_subdir: null

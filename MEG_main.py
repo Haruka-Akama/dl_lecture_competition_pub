@@ -241,7 +241,7 @@ def run(rank, world_size, cfg_dict, hydra_config):
 @hydra.main(version_base=None, config_path="configs", config_name="MEG_config")
 def main(cfg: DictConfig): 
     
-    world_size = torch.cuda.device_count()  # 使用可能なGPU数を取得
+    world_size = 1  # 使用可能なGPU数を取得
     cfg_dict = OmegaConf.to_container(cfg, resolve=True)  # Hydraの設定を辞書に変換
 
     # Hydra設定をファイルに保存
